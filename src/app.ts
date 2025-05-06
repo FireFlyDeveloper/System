@@ -1,8 +1,8 @@
-import { Hono } from 'hono'
+import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
-import { serveHTML } from './utils.ts/serverHTML';
+import { serveHTML } from "./utils.ts/serverHTML";
 
-const app = new Hono()
+const app = new Hono();
 
 app.use("/static/*", serveStatic({ root: "./src/" }));
 
@@ -12,4 +12,4 @@ app.get("/dashboard/alerts", (c) => c.html(serveHTML("alerts.html")));
 app.get("/dashboard/settings", (c) => c.html(serveHTML("settings.html")));
 app.get("/dashboard/admin", (c) => c.html(serveHTML("admin.html")));
 
-export default app
+export default app;
