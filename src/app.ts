@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { serveStatic } from "hono/bun";
-import { serveHTML } from './helpers/serverHTML';
+import { serveHTML } from './utils.ts/serverHTML';
 
 const app = new Hono()
 
