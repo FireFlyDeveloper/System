@@ -1,5 +1,5 @@
 import { pool } from "../database/postgreSQL";
-import { verifyPassword, hashPassword } from "../utils.ts/auth";
+import { verifyPassword, hashPassword } from "../utils/auth";
 
 export const createTable = async () => {
   const query = `
@@ -39,19 +39,31 @@ export const getUser = async (
   }
 };
 
-export const createUser = async (
-  username: string,
-  password: string,
-): Promise<Boolean> => {
-  const hashedPassword = await hashPassword(password);
+export const createUser = async (): Promise<boolean> => {
+  const adminUsername = "admin";
+  const adminPassword = "admin";
+
   try {
+    const existingUser = await pool.query(
+      "SELECT * FROM users WHERE username = $1",
+      [adminUsername],
+    );
+
+    if (existingUser.rows.length > 0) {
+      console.log("Admin user already exists");
+      return false;
+    }
+
+    const hashedPassword = await hashPassword(adminPassword);
     await pool.query("INSERT INTO users (username, password) VALUES ($1, $2)", [
-      username,
+      adminUsername,
       hashedPassword,
     ]);
+
+    console.log("Admin user created successfully");
     return true;
   } catch (error) {
-    console.error("Error creating user:", error);
+    console.error("Error creating admin user:", error);
     return false;
   }
 };
