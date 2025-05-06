@@ -12,7 +12,7 @@ export default class AuthController {
     createUser();
   }
 
-  async login(ctx: Context) {
+  static async login(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isValidUser = await getUser(username, password);
     if (isValidUser) {
@@ -22,7 +22,7 @@ export default class AuthController {
     }
   }
 
-  async update(ctx: Context) {
+  static async update(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isUpdated = await updateUser(username, password);
     if (isUpdated) {
