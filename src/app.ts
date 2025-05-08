@@ -4,6 +4,7 @@ import { CookieStore, Session, sessionMiddleware } from "hono-sessions";
 import { SessionDataTypes } from "./model/types";
 import { serveHTML } from "./utils/serverHTML";
 import { sessionsMiddleware } from "./middlewares/sessionMiddleware";
+import authUser from "./router/auth";
 
 const app = new Hono<{
   Variables: {
@@ -42,5 +43,7 @@ app.get("/dashboard/settings", sessionsMiddleware, (c) =>
 app.get("/dashboard/admin", sessionsMiddleware, (c) =>
   c.html(serveHTML("admin.html")),
 );
+
+app.route("/auth", authUser);
 
 export default app;
