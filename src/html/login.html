@@ -25,16 +25,19 @@
         color: #e0e0e0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       }
+
       .login-container {
         background-color: #1e1e1e;
         border-radius: 8px;
         box-shadow: 0 8px 32px rgba(0, 150, 255, 0.1);
         border: 1px solid rgba(48, 67, 82, 0.5);
       }
+
       .login-header {
         background: linear-gradient(135deg, #1a2a3a 0%, #121820 100%);
         border-radius: 8px 8px 0 0;
       }
+
       .form-control,
       .form-control:focus {
         background-color: #2a2a2a;
@@ -42,42 +45,52 @@
         color: #e0e0e0;
         transition: all 0.3s;
       }
+
       .form-control:focus {
         box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
         border-color: #007bff;
       }
+
       .btn-primary {
         background: linear-gradient(135deg, #0061a7 0%, #003b6f 100%);
         border: none;
         transition: all 0.3s;
       }
+
       .btn-primary:hover {
         background: linear-gradient(135deg, #0077cf 0%, #004d8c 100%);
         transform: translateY(-2px);
       }
+
       .security-icon {
         color: #0084ff;
       }
+
       .pulse {
         animation: pulse 2s infinite;
         background: rgba(0, 132, 255, 0.1);
         border-radius: 50%;
       }
+
       @keyframes pulse {
         0% {
           box-shadow: 0 0 0 0 rgba(0, 132, 255, 0.4);
         }
+
         70% {
           box-shadow: 0 0 0 15px rgba(0, 132, 255, 0);
         }
+
         100% {
           box-shadow: 0 0 0 0 rgba(0, 132, 255, 0);
         }
       }
+
       .system-status {
         background-color: #1a2a3a;
         border-radius: 4px;
       }
+
       .status-indicator {
         width: 10px;
         height: 10px;
@@ -87,6 +100,7 @@
       }
     </style>
   </head>
+
   <body
     class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
   >
@@ -112,7 +126,7 @@
             </div>
             <div class="text-gray-400">
               <i class="fas fa-server mr-1"></i>
-              <span id="current-time">05:45:22</span>
+              <span id="uptime">Uptime: --:--:--</span>
             </div>
           </div>
 
@@ -193,19 +207,25 @@
 
       // Update time
       function updateTime() {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        document.getElementById("current-time").textContent = timeString;
+        const ws = new WebSocket("ws://" + window.location.host + "/uptime");
+
+        ws.onmessage = function (event) {
+          document.getElementById("uptime").textContent =
+            "Uptime: " + event.data;
+        };
+
+        ws.onclose = function () {
+          console.log("Disconnected from uptime WebSocket.");
+          updateTime();
+        };
+
+        ws.onerror = function (err) {
+          console.error("WebSocket error:", err);
+        };
       }
 
       // Initial time set and interval
       updateTime();
-      setInterval(updateTime, 1000);
 
       document
         .querySelector("form")
