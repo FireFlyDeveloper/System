@@ -6,7 +6,13 @@ import { serveHTML } from "./utils/serverHTML";
 import { sessionsMiddleware } from "./middlewares/sessionMiddleware";
 import authUser from "./router/auth";
 import device from "./router/device";
+import { createBunWebSocket } from "hono/bun";
+import type { ServerWebSocket } from "bun";
+import { UptimeClock } from "./utils/clock";
 
+const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
+
+const clock = new UptimeClock();
 const app = new Hono<{
   Variables: {
     session: Session<SessionDataTypes>;
@@ -30,6 +36,25 @@ app.use(
 );
 
 app.use("/static/*", serveStatic({ root: "./src/" }));
+
+app.get(
+  "/uptime",
+  upgradeWebSocket((c) => {
+    let interval: NodeJS.Timer;
+
+    return {
+      onOpen(_event, ws) {
+        interval = setInterval(() => {
+          ws.send(clock.getUptime());
+        }, 1000);
+      },
+      onClose: () => {
+        clearInterval(interval);
+        console.log("Connection closed");
+      },
+    };
+  }),
+);
 
 app.get("/", sessionsMiddleware, (c) => c.html(serveHTML("login.html")));
 app.get("/dashboard", sessionsMiddleware, (c) =>
@@ -55,4 +80,7 @@ app.post("/logout", sessionsMiddleware, (c) => {
   return c.redirect("/");
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  websocket,
+};
