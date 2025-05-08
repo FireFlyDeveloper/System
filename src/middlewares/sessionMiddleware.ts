@@ -2,14 +2,13 @@ import { Context, Next } from "hono";
 import { verifyToken } from "../utils/token";
 
 export const sessionsMiddleware = async (c: Context, next: Next) => {
-  if (c.req.path === "/") {
-    return await next();
-  }
-
   const session = c.get("session");
   const jwt = session.get("jwt");
 
   if (!jwt) {
+    if (c.req.path === "/") {
+      return await next();
+    }
     session.forget("id");
     session.forget("jwt");
     return c.redirect("/");
@@ -18,11 +17,12 @@ export const sessionsMiddleware = async (c: Context, next: Next) => {
   try {
     const decoded = verifyToken(jwt);
     c.set("user", decoded);
-    await next();
 
     if (c.req.path === "/") {
-      c.redirect("/dashboard");
+      return c.redirect("/dashboard");
     }
+
+    await next();
   } catch (err) {
     session.forget("id");
     session.forget("jwt");

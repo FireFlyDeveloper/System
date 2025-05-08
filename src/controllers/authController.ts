@@ -5,30 +5,39 @@ import {
   createUser,
   updateUser,
 } from "../service/authService";
+import { generateToken } from "../utils/token";
 
-export default class AuthController {
+export class AuthController {
   constructor() {
-    createTable();
-    createUser();
+    this.initialize();
   }
 
-  static async login(ctx: Context) {
+  private async initialize() {
+    await createTable();
+    await createUser();
+  }
+
+  async login(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isValidUser = await getUser(username, password);
     if (isValidUser) {
-      ctx.json({ message: "Login successful" });
+      const session = ctx.get("session");
+      session.set("id", username);
+      const jwt = generateToken(username);
+      session.set("jwt", jwt);
+      return ctx.json({ message: "Login successful" });
     } else {
-      ctx.json({ message: "Invalid username or password" }, 401);
+      return ctx.json({ message: "Invalid username or password" }, 401);
     }
   }
 
-  static async update(ctx: Context) {
+  async update(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isUpdated = await updateUser(username, password);
     if (isUpdated) {
-      ctx.json({ message: "User updated successfully" });
+      return ctx.json({ message: "User updated successfully" });
     } else {
-      ctx.json({ message: "Failed to update user" }, 500);
+      return ctx.json({ message: "Failed to update user" }, 500);
     }
   }
 }
