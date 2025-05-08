@@ -1,0 +1,65 @@
+import { Context } from "hono";
+import {
+  createDevicesTable,
+  addDevice,
+  updateDevice,
+  deleteDevice,
+  getDeviceById,
+  getAllDevices,
+} from "../service/deviceService";
+
+export class DeviceController {
+  constructor() {
+    this.initialize();
+  }
+
+  private async initialize() {
+    await createDevicesTable();
+  }
+
+  async create(ctx: Context) {
+    const { mac, name } = await ctx.req.json();
+    const success = await addDevice(mac, name);
+    if (success) {
+      return ctx.json({ message: "Device created successfully" });
+    } else {
+      return ctx.json({ message: "Failed to create device" }, 500);
+    }
+  }
+
+  async update(ctx: Context) {
+    const id = Number(ctx.req.param("id"));
+    const { mac, name } = await ctx.req.json();
+    const success = await updateDevice(id, mac, name);
+    if (success) {
+      return ctx.json({ message: "Device updated successfully" });
+    } else {
+      return ctx.json({ message: "Failed to update device" }, 500);
+    }
+  }
+
+  async delete(ctx: Context) {
+    const id = Number(ctx.req.param("id"));
+    const success = await deleteDevice(id);
+    if (success) {
+      return ctx.json({ message: "Device deleted successfully" });
+    } else {
+      return ctx.json({ message: "Failed to delete device" }, 500);
+    }
+  }
+
+  async getById(ctx: Context) {
+    const id = Number(ctx.req.param("id"));
+    const device = await getDeviceById(id);
+    if (device) {
+      return ctx.json(device);
+    } else {
+      return ctx.json({ message: "Device not found" }, 404);
+    }
+  }
+
+  async getAll(ctx: Context) {
+    const devices = await getAllDevices();
+    return ctx.json(devices);
+  }
+}

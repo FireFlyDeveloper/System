@@ -5,6 +5,7 @@ import { SessionDataTypes } from "./model/types";
 import { serveHTML } from "./utils/serverHTML";
 import { sessionsMiddleware } from "./middlewares/sessionMiddleware";
 import authUser from "./router/auth";
+import device from "./router/device";
 
 const app = new Hono<{
   Variables: {
@@ -45,6 +46,7 @@ app.get("/dashboard/admin", sessionsMiddleware, (c) =>
 );
 
 app.route("/auth", authUser);
+app.route("/api", device);
 
 app.post("/logout", sessionsMiddleware, (c) => {
   const session = c.get("session");
