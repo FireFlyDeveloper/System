@@ -46,4 +46,11 @@ app.get("/dashboard/admin", sessionsMiddleware, (c) =>
 
 app.route("/auth", authUser);
 
+app.post("/logout", sessionsMiddleware, (c) => {
+  const session = c.get("session");
+  session.forget("id");
+  session.forget("jwt");
+  return c.redirect("/");
+});
+
 export default app;
