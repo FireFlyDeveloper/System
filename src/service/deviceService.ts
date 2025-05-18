@@ -7,6 +7,7 @@ export const createDevicesTable = async () => {
       id SERIAL PRIMARY KEY,
       mac VARCHAR(255) UNIQUE NOT NULL,
       name VARCHAR(255) NOT NULL,
+      saved_position JSONB,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
@@ -22,12 +23,13 @@ export const createDevicesTable = async () => {
 export const addDevice = async (
   mac: string,
   name: string,
+  saved_position?: object,
 ): Promise<boolean> => {
   try {
-    await pool.query("INSERT INTO devices (mac, name) VALUES ($1, $2)", [
-      mac,
-      name,
-    ]);
+    await pool.query(
+      "INSERT INTO devices (mac, name, saved_position) VALUES ($1, $2, $3)",
+      [mac, name, saved_position],
+    );
     return true;
   } catch (error) {
     console.error("Error adding device:", error);
@@ -40,16 +42,33 @@ export const updateDevice = async (
   id: number,
   mac: string,
   name: string,
+  saved_position?: object,
 ): Promise<boolean> => {
   try {
-    await pool.query("UPDATE devices SET mac = $1, name = $2 WHERE id = $3", [
-      mac,
-      name,
+    await pool.query(
+      "UPDATE devices SET mac = $1, name = $2, saved_position = $3 WHERE id = $4",
+      [mac, name, saved_position, id],
+    );
+    return true;
+  } catch (error) {
+    console.error("Error updating device:", error);
+    return false;
+  }
+};
+
+// Update only the saved_position of a device
+export const updateDevicePosition = async (
+  id: number,
+  saved_position: object,
+): Promise<boolean> => {
+  try {
+    await pool.query("UPDATE devices SET saved_position = $1 WHERE id = $2", [
+      saved_position,
       id,
     ]);
     return true;
   } catch (error) {
-    console.error("Error updating device:", error);
+    console.error("Error updating device position:", error);
     return false;
   }
 };

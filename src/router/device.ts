@@ -11,5 +11,10 @@ router.put("/devices/:id", authMiddleware, deviceController.update);
 router.delete("/devices/:id", authMiddleware, deviceController.delete);
 router.get("/devices/:id", authMiddleware, deviceController.getById);
 router.get("/devices", authMiddleware, deviceController.getAll);
+router.get(
+  "/devices/update-position/:id",
+  authMiddleware,
+  deviceController.updatePosition,
+);
 
 export default router;
