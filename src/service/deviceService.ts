@@ -9,6 +9,7 @@ export const createDevicesTable = async () => {
       name VARCHAR(255) NOT NULL,
       saved_position JSONB,
       status VARCHAR(50) DEFAULT 'offline',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
@@ -49,7 +50,7 @@ export const updateDevice = async (
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4 WHERE id = $5",
+      "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5",
       [mac, name, saved_position, status ?? "offline", id],
     );
     return true;
@@ -65,10 +66,10 @@ export const updateDevicePosition = async (
   saved_position: object,
 ): Promise<boolean> => {
   try {
-    await pool.query("UPDATE devices SET saved_position = $1 WHERE id = $2", [
-      saved_position,
-      id,
-    ]);
+    await pool.query(
+      "UPDATE devices SET saved_position = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [saved_position, id],
+    );
     return true;
   } catch (error) {
     console.error("Error updating device position:", error);
@@ -76,16 +77,16 @@ export const updateDevicePosition = async (
   }
 };
 
-// ✅ Optional: Update only the status of a device
+// Update only the status of a device
 export const updateDeviceStatus = async (
   mac: string,
   status: string,
 ): Promise<boolean> => {
   try {
-    await pool.query("UPDATE devices SET status = $1 WHERE mac = $2", [
-      status,
-      mac,
-    ]);
+    await pool.query(
+      "UPDATE devices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE mac = $2",
+      [status, mac],
+    );
     return true;
   } catch (error) {
     console.error("Error updating device status:", error);
@@ -120,6 +121,9 @@ export const updateDeviceByMac = async (
   }
 
   if (fields.length === 0) return false;
+
+  // Always update updated_at
+  fields.push(`updated_at = CURRENT_TIMESTAMP`);
 
   values.push(mac);
 
