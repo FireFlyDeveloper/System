@@ -8,6 +8,10 @@ export default class PositionController {
 
   constructor() {
     this.positioningSystem = new PositioningSystem();
+    this.init();
+  }
+
+  public init() {
     this.initialize().then((initialMacs) => {
       const macs = initialMacs.map((device) => device.mac.toLowerCase());
       this.positioningSystem.setTargetMacs(macs);

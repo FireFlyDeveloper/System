@@ -21,7 +21,7 @@ const app = new Hono<{
 }>();
 
 const store = new CookieStore();
-const positionController = new PositionController();
+export const positionController = new PositionController();
 
 app.use(
   "*",

@@ -8,6 +8,7 @@ import {
   getAllDevices,
   updateDevicePosition,
 } from "../service/deviceService";
+import { positionController } from "../app";
 
 export class DeviceController {
   constructor() {
@@ -22,6 +23,7 @@ export class DeviceController {
     const { mac, name, saved_position } = await ctx.req.json();
     const success = await addDevice(mac, name, saved_position);
     if (success) {
+      positionController.init();
       return ctx.json({ message: "Device created successfully" });
     } else {
       return ctx.json({ message: "Failed to create device" }, 500);
@@ -33,6 +35,7 @@ export class DeviceController {
     const { mac, name, saved_position } = await ctx.req.json();
     const success = await updateDevice(id, mac, name, saved_position);
     if (success) {
+      positionController.init();
       return ctx.json({ message: "Device updated successfully" });
     } else {
       return ctx.json({ message: "Failed to update device" }, 500);
@@ -43,6 +46,7 @@ export class DeviceController {
     const id = Number(ctx.req.param("id"));
     const success = await deleteDevice(id);
     if (success) {
+      positionController.init();
       return ctx.json({ message: "Device deleted successfully" });
     } else {
       return ctx.json({ message: "Failed to delete device" }, 500);
@@ -69,6 +73,7 @@ export class DeviceController {
     const { saved_position } = await ctx.req.json();
     const success = await updateDevicePosition(id, saved_position);
     if (success) {
+      positionController.init();
       return ctx.json({ message: "Device position updated successfully" });
     } else {
       return ctx.json({ message: "Failed to update device position" }, 500);
