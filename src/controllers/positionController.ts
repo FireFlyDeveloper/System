@@ -9,16 +9,25 @@ export default class PositionController {
   constructor() {
     this.positioningSystem = new PositioningSystem();
     this.initialize().then((initialMacs) => {
-      this.positioningSystem.setTargetMacs(initialMacs);
+      const macs = initialMacs.map((device) => device.mac.toLowerCase());
+      this.positioningSystem.setTargetMacs(macs);
+      const savedPositions = initialMacs.reduce(
+        (acc, device) => {
+          const mac = device.mac.toLowerCase();
+          const { x, y } = device.saved_position;
+          acc[mac] = { x, y };
+          return acc;
+        },
+        {} as { [mac: string]: { x: number; y: number } },
+      );
+
+      this.positioningSystem.setSavedPositions(savedPositions);
     });
   }
 
   private async initialize() {
     const savedPositions = await getAllDevices();
-    const initialMacs = savedPositions.map((device) =>
-      device.mac.toLowerCase(),
-    );
-    return initialMacs;
+    return savedPositions;
   }
 
   async setTargetMacs(ctx: Context) {
