@@ -1,22 +1,8 @@
 import { Context } from "hono";
-import {
-  createTable,
-  getUser,
-  createUser,
-  updateUser,
-} from "../service/authService";
+import { getUser, updateUser } from "../service/authService";
 import { generateToken } from "../utils/token";
 
 export class AuthController {
-  constructor() {
-    this.initialize();
-  }
-
-  private async initialize() {
-    await createTable();
-    await createUser();
-  }
-
   async login(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isValidUser = await getUser(username, password);

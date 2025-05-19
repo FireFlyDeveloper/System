@@ -1,14 +1,23 @@
 import { Context } from "hono";
 import { PositioningSystem } from "../system/calculator";
-import { getAllDevices } from "../service/deviceService";
+import { createDevicesTable, getAllDevices } from "../service/deviceService";
 import { WSContext } from "hono/ws";
+import { createTable, createUser } from "../service/authService";
 
 export default class PositionController {
-  private positioningSystem: PositioningSystem;
+  private positioningSystem!: PositioningSystem;
 
   constructor() {
-    this.positioningSystem = new PositioningSystem();
-    this.init();
+    this.createTables().then(() => {
+      this.positioningSystem = new PositioningSystem();
+      this.init();
+    });
+  }
+
+  private async createTables() {
+    await createTable();
+    await createUser();
+    await createDevicesTable();
   }
 
   public init() {

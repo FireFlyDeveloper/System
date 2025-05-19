@@ -1,6 +1,5 @@
 import { Context } from "hono";
 import {
-  createDevicesTable,
   addDevice,
   updateDevice,
   deleteDevice,
@@ -11,14 +10,6 @@ import {
 import { positionController } from "../app";
 
 export class DeviceController {
-  constructor() {
-    this.initialize();
-  }
-
-  private async initialize() {
-    await createDevicesTable();
-  }
-
   async create(ctx: Context) {
     const { mac, name, saved_position } = await ctx.req.json();
     const success = await addDevice(mac, name, saved_position);
