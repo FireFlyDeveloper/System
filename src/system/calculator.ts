@@ -29,9 +29,13 @@ export class PositioningSystem {
   private beaconRSSI: { [mac: string]: AnchorRSSI } = {};
   private smoothedPositions: { [mac: string]: Position } = {};
   private externalSavedPositions: { [mac: string]: Position } = {};
+  private lastSeenTimestamps: { [mac: string]: number } = {};
+  private readonly offlineTimeout = 30000; // 30 seconds
+  private readonly offlineCheckInterval = 5000; // 5 seconds
 
   constructor() {
     this.setupMQTT();
+    this.startOfflineChecker();
   }
 
   private setupMQTT() {
@@ -53,6 +57,9 @@ export class PositioningSystem {
           this.beaconRSSI[normalizedMac] = {};
         this.beaconRSSI[normalizedMac][esp] = rssi;
 
+        // Update last seen timestamp
+        this.lastSeenTimestamps[normalizedMac] = Date.now();
+
         if (
           Object.keys(this.beaconRSSI[normalizedMac]).length >= this.minAnchors
         ) {
@@ -62,6 +69,29 @@ export class PositioningSystem {
         console.error("MQTT message error:", err);
       }
     });
+  }
+
+  private startOfflineChecker() {
+    setInterval(() => {
+      const now = Date.now();
+      Array.from(this.targetMacs).forEach((mac) => {
+        const lastSeen = this.lastSeenTimestamps[mac];
+        if (!lastSeen || now - lastSeen > this.offlineTimeout) {
+          if (this.ws) {
+            this.ws.send(
+              JSON.stringify({
+                type: "offline_alert",
+                mac,
+                message: `Device ${mac} is offline!`,
+              }),
+            );
+          }
+          console.warn(`⚠️ Device ${mac} is offline!`);
+          // Reset timestamp to avoid repeated alerts
+          this.lastSeenTimestamps[mac] = now;
+        }
+      });
+    }, this.offlineCheckInterval);
   }
 
   private processPosition(mac: string) {
