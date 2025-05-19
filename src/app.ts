@@ -9,6 +9,7 @@ import device from "./router/device";
 import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
 import { UptimeClock } from "./utils/clock";
+import PositionController from "./controllers/positionController";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
@@ -20,6 +21,7 @@ const app = new Hono<{
 }>();
 
 const store = new CookieStore();
+const positionController = new PositionController();
 
 app.use(
   "*",
@@ -50,6 +52,20 @@ app.get(
       },
       onClose: () => {
         clearInterval(interval);
+        console.log("Connection closed");
+      },
+    };
+  }),
+);
+
+app.get(
+  "/status",
+  upgradeWebSocket((c) => {
+    return {
+      onOpen(_event, ws) {
+        positionController.setWebSocketContext(ws);
+      },
+      onClose: () => {
         console.log("Connection closed");
       },
     };

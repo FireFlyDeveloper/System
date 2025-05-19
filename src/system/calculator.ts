@@ -1,157 +1,162 @@
+import { WSContext } from "hono/ws";
 import mqtt from "mqtt";
-import * as fs from "fs";
 
-// MQTT Setup
-const brokerUrl = process.env.MQTT_BROKER_URL || "mqtt://localhost:1883";
-if (!brokerUrl) throw new Error("MQTT_BROKER_URL is not set");
-const client = mqtt.connect(brokerUrl);
-
-// Configuration
-const SMOOTHING_FACTOR = 0.1; // 0.1-0.5 (lower = smoother)
-const MIN_ANCHORS = 4; // Minimum anchors required for positioning
-const TARGET_MAC = "C0:01:94:7C:3F:A7".toLowerCase(); // Filter for specific beacon
-const POSITION_FILE = "saved_position.json";
-const MOVEMENT_THRESHOLD = 1.9; // meters - distance threshold to consider movement significant
-
-// Anchor positions (in meters)
-const anchorPositions: { [id: number]: { x: number; y: number } } = {
-  1: { x: 0, y: 0 },
-  2: { x: 7, y: 0 },
-  3: { x: 0, y: 10 },
-  4: { x: 7, y: 10 },
-};
-
-// Data structures
 interface AnchorRSSI {
   [anchorId: number]: number;
 }
-const beaconRSSI: { [mac: string]: AnchorRSSI } = {};
-const smoothedPositions: { [mac: string]: { x: number; y: number } } = {};
 
-// Load saved position
-let savedPosition: { x: number; y: number } | null = null;
-try {
-  if (fs.existsSync(POSITION_FILE)) {
-    const data = fs.readFileSync(POSITION_FILE, "utf8");
-    savedPosition = JSON.parse(data);
-    console.log(`Loaded saved position: ${JSON.stringify(savedPosition)}`);
-  }
-} catch (err) {
-  console.error("Error loading saved position:", err);
+interface Position {
+  x: number;
+  y: number;
 }
 
-// MQTT Connection
-client.on("connect", () => {
-  console.log("Connected to MQTT broker");
-  client.subscribe("esp32_1/rssi");
-  client.subscribe("esp32_2/rssi");
-  client.subscribe("esp32_3/rssi");
-  client.subscribe("esp32_4/rssi");
-});
+export class PositioningSystem {
+  private ws: WSContext | undefined;
+  private readonly brokerUrl = "mqtt://security.local";
+  private readonly client = mqtt.connect(this.brokerUrl);
+  private readonly smoothingFactor = 0.1;
+  private readonly minAnchors = 4;
+  private readonly movementThreshold = 1.9;
 
-// Message Handler
-client.on("message", (topic, message) => {
-  try {
-    const data = JSON.parse(message.toString());
-    const { mac, rssi, esp } = data;
+  private readonly anchorPositions: { [id: number]: Position } = {
+    1: { x: 0, y: 0 },
+    2: { x: 7, y: 0 },
+    3: { x: 0, y: 10 },
+    4: { x: 7, y: 10 },
+  };
 
-    // Filter for target beacon
-    if (mac !== TARGET_MAC) return;
+  private targetMacs: Set<string> = new Set();
+  private beaconRSSI: { [mac: string]: AnchorRSSI } = {};
+  private smoothedPositions: { [mac: string]: Position } = {};
+  private externalSavedPositions: { [mac: string]: Position } = {};
 
-    // Store raw RSSI
-    if (!beaconRSSI[mac]) beaconRSSI[mac] = {};
-    beaconRSSI[mac][esp] = rssi;
+  constructor() {
+    this.setupMQTT();
+  }
 
-    // Estimate position only when enough anchors are available
-    if (Object.keys(beaconRSSI[mac]).length >= MIN_ANCHORS) {
-      const newPos = estimatePosition(beaconRSSI[mac]);
+  private setupMQTT() {
+    this.client.on("connect", () => {
+      console.log("Connected to MQTT broker");
+      ["esp32_1/rssi", "esp32_2/rssi", "esp32_3/rssi", "esp32_4/rssi"].forEach(
+        (topic) => this.client.subscribe(topic),
+      );
+    });
 
-      if (newPos) {
-        // Apply exponential smoothing to position
-        if (!smoothedPositions[mac]) {
-          smoothedPositions[mac] = newPos;
-        } else {
-          smoothedPositions[mac].x =
-            SMOOTHING_FACTOR * newPos.x +
-            (1 - SMOOTHING_FACTOR) * smoothedPositions[mac].x;
-          smoothedPositions[mac].y =
-            SMOOTHING_FACTOR * newPos.y +
-            (1 - SMOOTHING_FACTOR) * smoothedPositions[mac].y;
+    this.client.on("message", (_topic, message) => {
+      try {
+        const { mac, rssi, esp } = JSON.parse(message.toString());
+        const normalizedMac = mac.toLowerCase();
+
+        if (!this.targetMacs.has(normalizedMac)) return;
+
+        if (!this.beaconRSSI[normalizedMac])
+          this.beaconRSSI[normalizedMac] = {};
+        this.beaconRSSI[normalizedMac][esp] = rssi;
+
+        if (
+          Object.keys(this.beaconRSSI[normalizedMac]).length >= this.minAnchors
+        ) {
+          this.processPosition(normalizedMac);
         }
+      } catch (err) {
+        console.error("MQTT message error:", err);
+      }
+    });
+  }
 
-        const currentPos = smoothedPositions[mac];
+  private processPosition(mac: string) {
+    const newPos = this.estimatePosition(this.beaconRSSI[mac]);
+    if (!newPos) return;
+
+    if (!this.smoothedPositions[mac]) {
+      this.smoothedPositions[mac] = newPos;
+    } else {
+      this.smoothedPositions[mac].x =
+        this.smoothingFactor * newPos.x +
+        (1 - this.smoothingFactor) * this.smoothedPositions[mac].x;
+      this.smoothedPositions[mac].y =
+        this.smoothingFactor * newPos.y +
+        (1 - this.smoothingFactor) * this.smoothedPositions[mac].y;
+    }
+
+    const currentPos = this.smoothedPositions[mac];
+    console.log(
+      `Beacon ${mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(2)})`,
+    );
+
+    const savedPos = this.externalSavedPositions[mac];
+    if (savedPos) {
+      const distance = this.calculateDistance(currentPos, savedPos);
+      if (distance > this.movementThreshold) {
+        if (this.ws) {
+          this.ws.send(
+            JSON.stringify({
+              type: "alert",
+              mac,
+              distance: distance.toFixed(2),
+              message: `Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
+            }),
+          );
+        }
         console.log(
-          `Beacon ${mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(2)})`,
+          `⚠️ Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
         );
-
-        // Check distance from saved position
-        if (savedPosition) {
-          const distance = calculateDistance(currentPos, savedPosition);
-          if (distance > MOVEMENT_THRESHOLD) {
-            console.log(
-              `⚠️ Device moved ${distance.toFixed(2)}m from saved position!`,
-            );
-          }
-        }
       }
     }
-  } catch (error) {
-    console.error("MQTT message error:", error);
   }
-});
 
-// Calculate distance between two points
-function calculateDistance(
-  pos1: { x: number; y: number },
-  pos2: { x: number; y: number },
-): number {
-  const dx = pos1.x - pos2.x;
-  const dy = pos1.y - pos2.y;
-  return Math.sqrt(dx * dx + dy * dy);
+  private estimatePosition(rssiMap: AnchorRSSI): Position | null {
+    let totalWeight = 0;
+    let weightedX = 0;
+    let weightedY = 0;
+
+    for (const [anchorIdStr, rssi] of Object.entries(rssiMap)) {
+      const anchorId = Number(anchorIdStr);
+      const pos = this.anchorPositions[anchorId];
+      if (!pos) continue;
+
+      const weight = Math.pow(10, rssi / 20);
+      totalWeight += weight;
+      weightedX += pos.x * weight;
+      weightedY += pos.y * weight;
+    }
+
+    return totalWeight > 0
+      ? { x: weightedX / totalWeight, y: weightedY / totalWeight }
+      : null;
+  }
+
+  private calculateDistance(pos1: Position, pos2: Position): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // === Public API ===
+  public setWebSocketContext(ws: WSContext) {
+    this.ws = ws;
+  }
+
+  public setTargetMacs(macs: string[]) {
+    this.targetMacs = new Set(macs.map((mac) => mac.toLowerCase()));
+  }
+
+  public updateTargetMacs(macs: string[]) {
+    macs
+      .map((mac) => mac.toLowerCase())
+      .forEach((mac) => this.targetMacs.add(mac));
+  }
+
+  public setSavedPositions(saved: { [mac: string]: Position }) {
+    this.externalSavedPositions = { ...saved };
+  }
+
+  public getAllPositions(): { [mac: string]: Position } {
+    return { ...this.smoothedPositions };
+  }
+
+  public getPosition(mac: string): Position | null {
+    const normMac = mac.toLowerCase();
+    return this.smoothedPositions[normMac] || null;
+  }
 }
-
-// Save position to file
-function savePosition(position: { x: number; y: number }): void {
-  try {
-    fs.writeFileSync(POSITION_FILE, JSON.stringify(position));
-    savedPosition = position;
-    console.log(`Position saved: ${JSON.stringify(position)}`);
-  } catch (err) {
-    console.error("Error saving position:", err);
-  }
-}
-
-// Optimized Position Estimation (Small-room variant)
-function estimatePosition(
-  rssiMap: AnchorRSSI,
-): { x: number; y: number } | null {
-  let totalWeight = 0;
-  let weightedX = 0;
-  let weightedY = 0;
-
-  for (const [anchorIdStr, rssi] of Object.entries(rssiMap)) {
-    const anchorId = Number(anchorIdStr);
-    const pos = anchorPositions[anchorId];
-    if (!pos) continue;
-
-    // Aggressive weighting for small rooms (weak signals matter less)
-    const weight = Math.pow(10, rssi / 20); // Note: 20 instead of 10
-    totalWeight += weight;
-    weightedX += pos.x * weight;
-    weightedY += pos.y * weight;
-  }
-
-  return totalWeight > 0
-    ? { x: weightedX / totalWeight, y: weightedY / totalWeight }
-    : null;
-}
-
-// Add command to save current position (for example via console input)
-process.stdin.on("data", (data) => {
-  const input = data.toString().trim();
-  if (input === "save" && smoothedPositions[TARGET_MAC]) {
-    savePosition(smoothedPositions[TARGET_MAC]);
-  }
-});
-
-console.log("Type 'save' to save the current position");
