@@ -23,6 +23,7 @@ const app = new Hono<{
 
 const store = new CookieStore();
 export const positionController = new PositionController();
+positionController.create();
 
 app.use(
   "*",

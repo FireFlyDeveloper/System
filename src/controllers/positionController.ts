@@ -7,11 +7,11 @@ import { createTable, createUser } from "../service/authService";
 export default class PositionController {
   private positioningSystem!: PositioningSystem;
 
-  constructor() {
-    this.createTables().then(() => {
-      this.positioningSystem = new PositioningSystem();
-      this.init();
-    });
+  // Static factory method for safe async initialization
+  async create() {
+    await this.createTables();
+    this.positioningSystem = new PositioningSystem();
+    await this.init();
   }
 
   private async createTables() {
@@ -20,47 +20,60 @@ export default class PositionController {
     await createDevicesTable();
   }
 
-  public init() {
-    this.initialize().then((initialMacs) => {
-      const macs = initialMacs.map((device) => device.mac.toLowerCase());
-      this.positioningSystem.setTargetMacs(macs);
-      const savedPositions = initialMacs.reduce(
-        (acc, device) => {
-          const mac = device.mac.toLowerCase();
-          const pos = device.saved_position;
-          if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
-            acc[mac] = { x: pos.x, y: pos.y };
-          }
-          return acc;
-        },
-        {} as { [mac: string]: { x: number; y: number } },
-      );
+  async init() {
+    const initialMacs = await getAllDevices();
+    const macs = initialMacs.map((device) => device.mac.toLowerCase());
+    this.positioningSystem.setTargetMacs(macs);
 
-      this.positioningSystem.setSavedPositions(savedPositions);
-    });
-  }
+    const savedPositions = initialMacs.reduce(
+      (acc, device) => {
+        const mac = device.mac.toLowerCase();
+        const pos = device.saved_position;
+        if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
+          acc[mac] = { x: pos.x, y: pos.y };
+        }
+        return acc;
+      },
+      {} as { [mac: string]: { x: number; y: number } },
+    );
 
-  private async initialize() {
-    const savedPositions = await getAllDevices();
-    return savedPositions;
+    this.positioningSystem.setSavedPositions(savedPositions);
   }
 
   async setTargetMacs(ctx: Context) {
-    const { macs } = await ctx.req.json();
-    this.positioningSystem.setTargetMacs(macs);
-    return ctx.json({ message: "Target MACs set successfully" });
+    try {
+      const { macs } = await ctx.req.json();
+      if (!Array.isArray(macs)) {
+        throw new Error("Invalid MAC list");
+      }
+      this.positioningSystem.setTargetMacs(macs);
+      return ctx.json({ message: "Target MACs set successfully" });
+    } catch (err: any) {
+      return ctx.json({ message: err.message }, 400);
+    }
   }
 
   async updateTargetMacs(ctx: Context) {
-    const { macs } = await ctx.req.json();
-    this.positioningSystem.updateTargetMacs(macs);
-    return ctx.json({ message: "Target MACs updated successfully" });
+    try {
+      const { macs } = await ctx.req.json();
+      if (!Array.isArray(macs)) {
+        throw new Error("Invalid MAC list");
+      }
+      this.positioningSystem.updateTargetMacs(macs);
+      return ctx.json({ message: "Target MACs updated successfully" });
+    } catch (err: any) {
+      return ctx.json({ message: err.message }, 400);
+    }
   }
 
   async setPosition(ctx: Context) {
-    const { position } = await ctx.req.json();
-    this.positioningSystem.setSavedPositions(position);
-    return ctx.json({ message: "Position set successfully" });
+    try {
+      const { position } = await ctx.req.json();
+      this.positioningSystem.setSavedPositions(position);
+      return ctx.json({ message: "Position set successfully" });
+    } catch (err: any) {
+      return ctx.json({ message: err.message }, 400);
+    }
   }
 
   async getAllPositions(ctx: Context) {
@@ -74,11 +87,17 @@ export default class PositionController {
     if (position) {
       return ctx.json(position);
     } else {
-      return ctx.json({ message: "Position not found" }, 404);
+      ctx.status(404);
+      return ctx.json({ message: "Position not found" });
     }
   }
 
   async setWebSocketContext(ctx: WSContext) {
+    if (!this.positioningSystem) {
+      ctx.send(JSON.stringify({ error: "Positioning system not initialized" }));
+      return;
+    }
+
     this.positioningSystem.setWebSocketContext(ctx);
     return ctx.send(
       JSON.stringify({ message: "WebSocket context set successfully" }),
