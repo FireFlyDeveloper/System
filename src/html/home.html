@@ -233,6 +233,7 @@
         onlineCount: 0,
         offlineCount: 0,
         shownNotifications: new Set(), // Track which notifications we've shown
+        lastUpdateTime: null,
       };
 
       // DOM Elements
@@ -244,104 +245,58 @@
       const refreshBtn = document.getElementById("refresh-btn");
       const alertContainer = document.getElementById("alert-container");
 
-      // WebSocket connection
-      let statusSocket = null;
+      // Format date to readable time
+      function formatLastSeen(dateString) {
+        if (!dateString) return "Unknown";
 
-      function connectWebSocket() {
-        const wsProtocol =
-          window.location.protocol === "https:" ? "wss:" : "ws:";
-        statusSocket = new WebSocket(
-          `${wsProtocol}//${window.location.host}/status`,
-        );
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "Unknown";
 
-        statusSocket.onopen = () => {
-          console.log("WebSocket connected");
-        };
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
 
-        statusSocket.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          handleStatusUpdate(data);
-        };
-
-        statusSocket.onclose = () => {
-          console.log("WebSocket disconnected. Reconnecting...");
-          setTimeout(connectWebSocket, 3000);
-        };
-
-        statusSocket.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
+        if (diffInSeconds < 60) {
+          return `${diffInSeconds} seconds ago`;
+        } else if (diffInSeconds < 3600) {
+          const minutes = Math.floor(diffInSeconds / 60);
+          return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+        } else if (diffInSeconds < 86400) {
+          const hours = Math.floor(diffInSeconds / 3600);
+          return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+        } else {
+          return date.toLocaleString();
+        }
       }
 
-      // Handle status updates from WebSocket
-      function handleStatusUpdate(data) {
+      // Determine device status based on last update time
+      function determineStatus(updatedAt) {
+        if (!updatedAt) return "offline";
+
+        const updateTime = new Date(updatedAt);
         const now = new Date();
-        const timeString = now.toLocaleTimeString();
-        const currentStatus = deviceState.statusMap[data.mac] || {
-          status: "unknown",
-          lastSeen: "Unknown",
+        const minutesDiff = (now - updateTime) / (1000 * 60);
+
+        if (minutesDiff < 5) {
+          return "online";
+        } else if (minutesDiff < 30) {
+          return "warning";
+        } else {
+          return "offline";
+        }
+      }
+
+      // Handle status updates from WebSocket or API
+      function handleStatusUpdate(device) {
+        const status = determineStatus(device.updated_at);
+        const lastSeen = formatLastSeen(device.updated_at);
+
+        deviceState.statusMap[device.mac] = {
+          status,
+          lastSeen,
           distance: null,
           lastNotification: null,
         };
 
-        let newStatus = currentStatus.status;
-        let shouldNotify = false;
-        let notificationKey = `${data.mac}_${data.type}`;
-        let notificationMessage = data.message;
-
-        if (data.type === "offline_alert") {
-          newStatus = "offline";
-          // Only notify if status changed to offline
-          shouldNotify = currentStatus.status !== "offline";
-          notificationKey = `${data.mac}_offline`;
-        } else if (data.type === "alert") {
-          newStatus = "warning";
-          // Only notify if distance changed significantly (> 0.5m difference) or status changed
-          const prevDistance = parseFloat(currentStatus.distance) || 0;
-          const newDistance = parseFloat(data.distance);
-          const distanceChanged = Math.abs(prevDistance - newDistance) > 0.5;
-          shouldNotify = distanceChanged || currentStatus.status !== "warning";
-
-          // Include distance in notification key to track different movement amounts
-          notificationKey = `${data.mac}_moved_${Math.floor(newDistance)}`;
-
-          // Enhance message with direction if possible
-          if (distanceChanged && currentStatus.distance) {
-            const direction = newDistance > prevDistance ? "further" : "closer";
-            notificationMessage = `Device ${data.mac} moved ${direction} (${data.distance}m from saved position)`;
-          }
-        } else if (data.type === "update") {
-          newStatus = "online";
-          // Don't notify for regular updates
-          shouldNotify = false;
-        }
-
-        // Update device status
-        deviceState.statusMap[data.mac] = {
-          status: newStatus,
-          lastSeen: timeString,
-          distance: data.distance || currentStatus.distance,
-          lastNotification: notificationKey,
-        };
-
-        // Show notification if needed and not already shown
-        if (
-          shouldNotify &&
-          !deviceState.shownNotifications.has(notificationKey)
-        ) {
-          showAlert(
-            notificationMessage,
-            newStatus === "offline" ? "danger" : "warning",
-          );
-          deviceState.shownNotifications.add(notificationKey);
-
-          // Remove from shown notifications after 1 hour
-          setTimeout(() => {
-            deviceState.shownNotifications.delete(notificationKey);
-          }, 3600000);
-        }
-
-        // Update counters and UI
         updateCounters();
         renderDevices();
       }
@@ -367,7 +322,7 @@
       function createDeviceCard(device) {
         const statusInfo = deviceState.statusMap[device.mac] || {
           status: "offline",
-          lastSeen: "Unknown",
+          lastSeen: formatLastSeen(device.updated_at),
           distance: null,
           lastNotification: null,
         };
@@ -386,9 +341,7 @@
           statusClass = "status-warning";
           statusText = "Warning";
           statusBadge = "bg-warning";
-          statusDetail = statusInfo.distance
-            ? `Moved ${statusInfo.distance}m`
-            : "Position changed";
+          statusDetail = "Recently active";
         }
 
         return `
@@ -429,14 +382,19 @@
       function updateCounters() {
         const statusValues = Object.values(deviceState.statusMap);
         deviceState.onlineCount = statusValues.filter(
-          (s) => s.status === "online" || s.status === "warning",
+          (s) => s.status === "online",
         ).length;
-        deviceState.offlineCount =
-          deviceState.devices.length - deviceState.onlineCount;
+        deviceState.offlineCount = statusValues.filter(
+          (s) => s.status === "offline",
+        ).length;
+
+        const warningCount = statusValues.filter(
+          (s) => s.status === "warning",
+        ).length;
 
         totalDevicesEl.textContent = deviceState.devices.length;
         onlineDevicesEl.textContent = deviceState.onlineCount;
-        offlineDevicesEl.textContent = deviceState.offlineCount;
+        offlineDevicesEl.textContent = deviceState.offlineCount + warningCount;
       }
 
       // Render devices
@@ -475,6 +433,7 @@
           return devices;
         } catch (error) {
           console.error("Error fetching devices:", error);
+          showAlert("Failed to load devices. Please try again.", "danger");
           return [];
         }
       }
@@ -490,17 +449,11 @@
 
         const devices = await fetchDevices();
         deviceState.devices = devices;
+        deviceState.lastUpdateTime = new Date();
 
-        // Initialize status map if not already set
+        // Initialize status map based on updated_at
         devices.forEach((device) => {
-          if (!deviceState.statusMap[device.mac]) {
-            deviceState.statusMap[device.mac] = {
-              status: "offline",
-              lastSeen: "Unknown",
-              distance: null,
-              lastNotification: null,
-            };
-          }
+          handleStatusUpdate(device);
         });
 
         updateCounters();
@@ -509,15 +462,15 @@
 
       // Initialize
       document.addEventListener("DOMContentLoaded", () => {
-        // Connect to WebSocket
-        connectWebSocket();
-
         // Load initial data
         updateDevices();
 
         // Set up event listeners
         refreshBtn.addEventListener("click", updateDevices);
         searchInput.addEventListener("input", renderDevices);
+
+        // Set up periodic refresh (every 30 seconds)
+        setInterval(updateDevices, 30000);
 
         // Update time
         function updateTime() {
@@ -530,7 +483,7 @@
 
           ws.onclose = function () {
             console.log("Disconnected from uptime WebSocket.");
-            updateTime();
+            setTimeout(updateTime, 3000);
           };
 
           ws.onerror = function (err) {

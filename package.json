@@ -1,7 +1,7 @@
 {
   "name": "src",
   "scripts": {
-    "dev": "bun run --hot src/app.ts",
+    "dev": "bun run --watch src/app.ts",
     "prettier": "bunx prettier --write .",
     "build": "bun build ./src/app.ts --outdir ./dist --target node",
     "start": "bun run dist/app.js"
