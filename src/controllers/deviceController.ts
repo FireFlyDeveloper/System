@@ -32,8 +32,8 @@ export class DeviceController {
 
   async update(ctx: Context) {
     const id = Number(ctx.req.param("id"));
-    const { mac, name, saved_position } = await ctx.req.json();
-    const success = await updateDevice(id, mac, name, saved_position);
+    const { mac, name, saved_position, status } = await ctx.req.json();
+    const success = await updateDevice(id, mac, name, saved_position, status);
     if (success) {
       positionController.init();
       return ctx.json({ message: "Device updated successfully" });

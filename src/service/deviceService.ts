@@ -8,6 +8,7 @@ export const createDevicesTable = async () => {
       mac VARCHAR(255) UNIQUE NOT NULL,
       name VARCHAR(255) NOT NULL,
       saved_position JSONB,
+      status VARCHAR(50) DEFAULT 'offline',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
@@ -24,11 +25,12 @@ export const addDevice = async (
   mac: string,
   name: string,
   saved_position?: object,
+  status: string = "offline",
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "INSERT INTO devices (mac, name, saved_position) VALUES ($1, $2, $3)",
-      [mac, name, saved_position],
+      "INSERT INTO devices (mac, name, saved_position, status) VALUES ($1, $2, $3, $4)",
+      [mac, name, saved_position, status],
     );
     return true;
   } catch (error) {
@@ -43,11 +45,12 @@ export const updateDevice = async (
   mac: string,
   name: string,
   saved_position?: object,
+  status?: string,
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "UPDATE devices SET mac = $1, name = $2, saved_position = $3 WHERE id = $4",
-      [mac, name, saved_position, id],
+      "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4 WHERE id = $5",
+      [mac, name, saved_position, status ?? "offline", id],
     );
     return true;
   } catch (error) {
@@ -69,6 +72,64 @@ export const updateDevicePosition = async (
     return true;
   } catch (error) {
     console.error("Error updating device position:", error);
+    return false;
+  }
+};
+
+// ✅ Optional: Update only the status of a device
+export const updateDeviceStatus = async (
+  mac: string,
+  status: string,
+): Promise<boolean> => {
+  try {
+    await pool.query("UPDATE devices SET status = $1 WHERE mac = $2", [
+      status,
+      mac,
+    ]);
+    return true;
+  } catch (error) {
+    console.error("Error updating device status:", error);
+    return false;
+  }
+};
+
+// Update a device by MAC address
+export const updateDeviceByMac = async (
+  mac: string,
+  name?: string,
+  saved_position?: object,
+  status?: string,
+): Promise<boolean> => {
+  const fields: string[] = [];
+  const values: any[] = [];
+  let index = 1;
+
+  if (name !== undefined) {
+    fields.push(`name = $${index++}`);
+    values.push(name);
+  }
+
+  if (saved_position !== undefined) {
+    fields.push(`saved_position = $${index++}`);
+    values.push(saved_position);
+  }
+
+  if (status !== undefined) {
+    fields.push(`status = $${index++}`);
+    values.push(status);
+  }
+
+  if (fields.length === 0) return false;
+
+  values.push(mac);
+
+  const query = `UPDATE devices SET ${fields.join(", ")} WHERE mac = $${index}`;
+
+  try {
+    await pool.query(query, values);
+    return true;
+  } catch (error) {
+    console.error("Error updating device by MAC:", error);
     return false;
   }
 };

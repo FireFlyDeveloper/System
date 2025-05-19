@@ -1,5 +1,6 @@
 import { WSContext } from "hono/ws";
 import mqtt from "mqtt";
+import { updateDeviceStatus } from "../service/deviceService";
 
 interface AnchorRSSI {
   [anchorId: number]: number;
@@ -87,6 +88,7 @@ export class PositioningSystem {
             );
           }
           console.warn(`⚠️ Device ${mac} is offline!`);
+          updateDeviceStatus(mac, "offline");
           // Reset timestamp to avoid repeated alerts
           this.lastSeenTimestamps[mac] = now;
         }
@@ -118,6 +120,7 @@ export class PositioningSystem {
     if (savedPos) {
       const distance = this.calculateDistance(currentPos, savedPos);
       if (distance > this.movementThreshold) {
+        updateDeviceStatus(mac, "Out of position");
         if (this.ws) {
           this.ws.send(
             JSON.stringify({
@@ -133,6 +136,7 @@ export class PositioningSystem {
         );
       } else {
         console.log(`Device ${mac} is within movement threshold.`);
+        updateDeviceStatus(mac, "online");
         if (this.ws) {
           this.ws.send(
             JSON.stringify({
