@@ -53,6 +53,10 @@
         color: #e74c3c;
         text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
       }
+      .status-warning {
+        color: #f39c12;
+        text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+      }
       .system-status {
         background-color: #1a2a3a;
         border-radius: 4px;
@@ -64,9 +68,34 @@
         background-color: #00ff66;
         box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
       }
+      .loading-spinner {
+        display: inline-block;
+        width: 2rem;
+        height: 2rem;
+        vertical-align: text-bottom;
+        border: 0.25em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border 0.75s linear infinite;
+      }
+      .alert-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+      }
+      @keyframes spinner-border {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body class="min-h-screen">
+    <!-- Alert Toast Container -->
+    <div id="alert-container" class="alert-toast"></div>
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark py-3">
       <div class="container">
@@ -130,19 +159,25 @@
         <div class="col-md-4 mb-3">
           <div class="p-4 bg-gray-800 rounded-lg text-center">
             <h3 class="text-lg">Total Devices</h3>
-            <p class="text-3xl font-bold text-blue-400">15</p>
+            <p class="text-3xl font-bold text-blue-400" id="total-devices">
+              <span class="loading-spinner text-blue-400"></span>
+            </p>
           </div>
         </div>
         <div class="col-md-4 mb-3">
           <div class="p-4 bg-gray-800 rounded-lg text-center">
             <h3 class="text-lg">Online</h3>
-            <p class="text-3xl font-bold text-green-500">12</p>
+            <p class="text-3xl font-bold text-green-500" id="online-devices">
+              <span class="loading-spinner text-green-500"></span>
+            </p>
           </div>
         </div>
         <div class="col-md-4 mb-3">
           <div class="p-4 bg-gray-800 rounded-lg text-center">
             <h3 class="text-lg">Offline</h3>
-            <p class="text-3xl font-bold text-red-500">3</p>
+            <p class="text-3xl font-bold text-red-500" id="offline-devices">
+              <span class="loading-spinner text-red-500"></span>
+            </p>
           </div>
         </div>
       </div>
@@ -162,6 +197,7 @@
               type="text"
               class="form-control bg-gray-700 border-gray-600 text-white"
               placeholder="Search devices..."
+              id="search-input"
             />
           </div>
         </div>
@@ -169,192 +205,17 @@
           <button class="btn btn-sm btn-outline-light me-2">
             <i class="fas fa-filter me-1"></i> Filter
           </button>
-          <button class="btn btn-sm btn-outline-primary">
+          <button class="btn btn-sm btn-outline-primary" id="refresh-btn">
             <i class="fas fa-sync-alt me-1"></i> Refresh
           </button>
         </div>
       </div>
 
       <!-- Devices Grid -->
-      <div class="row">
-        <!-- Device 1 - Online -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-present me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-001</h4>
-                  <p class="text-sm text-gray-400">Development Team</p>
-                </div>
-              </div>
-              <span class="badge bg-success">Online</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:01</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>Just now</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-green-500">Secure</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Device 2 - Online -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-present me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-002</h4>
-                  <p class="text-sm text-gray-400">Marketing</p>
-                </div>
-              </div>
-              <span class="badge bg-success">Online</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:02</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>2 min ago</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-green-500">Secure</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Device 3 - Offline -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-offline me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-003</h4>
-                  <p class="text-sm text-gray-400">Finance</p>
-                </div>
-              </div>
-              <span class="badge bg-danger">Offline</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:03</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>5 hours ago</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-red-500">Unreachable</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Device 4 - Online -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-present me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-004</h4>
-                  <p class="text-sm text-gray-400">HR Department</p>
-                </div>
-              </div>
-              <span class="badge bg-success">Online</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:04</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>Just now</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-green-500">Secure</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Device 5 - Online -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-present me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-005</h4>
-                  <p class="text-sm text-gray-400">Executive</p>
-                </div>
-              </div>
-              <span class="badge bg-success">Online</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:05</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>1 min ago</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-green-500">Secure</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Device 6 - Offline -->
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="device-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-laptop fa-2x status-offline me-3"></i>
-                <div>
-                  <h4 class="mb-0 font-semibold">Laptop-006</h4>
-                  <p class="text-sm text-gray-400">Support</p>
-                </div>
-              </div>
-              <span class="badge bg-danger">Offline</span>
-            </div>
-            <div class="text-sm text-gray-400">
-              <div class="d-flex justify-content-between mb-1">
-                <span>MAC Address:</span>
-                <span>AC:84:C6:5E:2F:06</span>
-              </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span>Last Seen:</span>
-                <span>2 days ago</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span>Status:</span>
-                <span class="text-red-500">Unreachable</span>
-              </div>
-            </div>
-          </div>
+      <div class="row" id="devices-container">
+        <div class="col-12 text-center py-5">
+          <div class="loading-spinner text-blue-400 mx-auto"></div>
+          <p class="mt-3">Loading devices...</p>
         </div>
       </div>
     </div>
@@ -368,27 +229,320 @@
     <!-- Bootstrap & Custom Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-      // Update time
-      function updateTime() {
-        const ws = new WebSocket("ws://" + window.location.host + "/uptime");
+      // Device state management
+      const deviceState = {
+        devices: [],
+        statusMap: {}, // mac -> {status, lastSeen, distance, lastNotification}
+        onlineCount: 0,
+        offlineCount: 0,
+        shownNotifications: new Set(), // Track which notifications we've shown
+      };
 
-        ws.onmessage = function (event) {
-          document.getElementById("uptime").textContent =
-            "Uptime: " + event.data;
+      // DOM Elements
+      const devicesContainer = document.getElementById("devices-container");
+      const totalDevicesEl = document.getElementById("total-devices");
+      const onlineDevicesEl = document.getElementById("online-devices");
+      const offlineDevicesEl = document.getElementById("offline-devices");
+      const searchInput = document.getElementById("search-input");
+      const refreshBtn = document.getElementById("refresh-btn");
+      const alertContainer = document.getElementById("alert-container");
+
+      // WebSocket connection
+      let statusSocket = null;
+
+      function connectWebSocket() {
+        const wsProtocol =
+          window.location.protocol === "https:" ? "wss:" : "ws:";
+        statusSocket = new WebSocket(
+          `${wsProtocol}//${window.location.host}/status`,
+        );
+
+        statusSocket.onopen = () => {
+          console.log("WebSocket connected");
         };
 
-        ws.onclose = function () {
-          console.log("Disconnected from uptime WebSocket.");
-          updateTime();
+        statusSocket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          handleStatusUpdate(data);
         };
 
-        ws.onerror = function (err) {
-          console.error("WebSocket error:", err);
+        statusSocket.onclose = () => {
+          console.log("WebSocket disconnected. Reconnecting...");
+          setTimeout(connectWebSocket, 3000);
+        };
+
+        statusSocket.onerror = (error) => {
+          console.error("WebSocket error:", error);
         };
       }
 
-      // Initial time set and interval
-      updateTime();
+      // Handle status updates from WebSocket
+      function handleStatusUpdate(data) {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        const currentStatus = deviceState.statusMap[data.mac] || {
+          status: "unknown",
+          lastSeen: "Unknown",
+          distance: null,
+          lastNotification: null,
+        };
+
+        let newStatus = currentStatus.status;
+        let shouldNotify = false;
+        let notificationKey = `${data.mac}_${data.type}`;
+        let notificationMessage = data.message;
+
+        if (data.type === "offline_alert") {
+          newStatus = "offline";
+          // Only notify if status changed to offline
+          shouldNotify = currentStatus.status !== "offline";
+          notificationKey = `${data.mac}_offline`;
+        } else if (data.type === "alert") {
+          newStatus = "warning";
+          // Only notify if distance changed significantly (> 0.5m difference) or status changed
+          const prevDistance = parseFloat(currentStatus.distance) || 0;
+          const newDistance = parseFloat(data.distance);
+          const distanceChanged = Math.abs(prevDistance - newDistance) > 0.5;
+          shouldNotify = distanceChanged || currentStatus.status !== "warning";
+
+          // Include distance in notification key to track different movement amounts
+          notificationKey = `${data.mac}_moved_${Math.floor(newDistance)}`;
+
+          // Enhance message with direction if possible
+          if (distanceChanged && currentStatus.distance) {
+            const direction = newDistance > prevDistance ? "further" : "closer";
+            notificationMessage = `Device ${data.mac} moved ${direction} (${data.distance}m from saved position)`;
+          }
+        } else if (data.type === "update") {
+          newStatus = "online";
+          // Don't notify for regular updates
+          shouldNotify = false;
+        }
+
+        // Update device status
+        deviceState.statusMap[data.mac] = {
+          status: newStatus,
+          lastSeen: timeString,
+          distance: data.distance || currentStatus.distance,
+          lastNotification: notificationKey,
+        };
+
+        // Show notification if needed and not already shown
+        if (
+          shouldNotify &&
+          !deviceState.shownNotifications.has(notificationKey)
+        ) {
+          showAlert(
+            notificationMessage,
+            newStatus === "offline" ? "danger" : "warning",
+          );
+          deviceState.shownNotifications.add(notificationKey);
+
+          // Remove from shown notifications after 1 hour
+          setTimeout(() => {
+            deviceState.shownNotifications.delete(notificationKey);
+          }, 3600000);
+        }
+
+        // Update counters and UI
+        updateCounters();
+        renderDevices();
+      }
+
+      // Show alert toast
+      function showAlert(message, type) {
+        const alertEl = document.createElement("div");
+        alertEl.className = `alert alert-${type} alert-dismissible fade show mb-2`;
+        alertEl.innerHTML = `
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          <strong>${type === "danger" ? "Offline" : "Alert"}:</strong> ${message}
+        `;
+        alertContainer.appendChild(alertEl);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          alertEl.classList.remove("show");
+          setTimeout(() => alertEl.remove(), 150);
+        }, 5000);
+      }
+
+      // Format device card HTML
+      function createDeviceCard(device) {
+        const statusInfo = deviceState.statusMap[device.mac] || {
+          status: "offline",
+          lastSeen: "Unknown",
+          distance: null,
+          lastNotification: null,
+        };
+
+        let statusClass = "status-present";
+        let statusText = "Online";
+        let statusBadge = "bg-success";
+        let statusDetail = "Secure";
+
+        if (statusInfo.status === "offline") {
+          statusClass = "status-offline";
+          statusText = "Offline";
+          statusBadge = "bg-danger";
+          statusDetail = "Unreachable";
+        } else if (statusInfo.status === "warning") {
+          statusClass = "status-warning";
+          statusText = "Warning";
+          statusBadge = "bg-warning";
+          statusDetail = statusInfo.distance
+            ? `Moved ${statusInfo.distance}m`
+            : "Position changed";
+        }
+
+        return `
+          <div class="col-md-6 col-lg-4 mb-4">
+            <div class="device-card p-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-laptop fa-2x ${statusClass} me-3"></i>
+                  <div>
+                    <h4 class="mb-0 font-semibold">${device.name}</h4>
+                    <p class="text-sm text-gray-400">${device.saved_position || "No position set"}</p>
+                  </div>
+                </div>
+                <span class="badge ${statusBadge}">${statusText}</span>
+              </div>
+              <div class="text-sm text-gray-400">
+                <div class="d-flex justify-content-between mb-1">
+                  <span>MAC Address:</span>
+                  <span>${device.mac}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                  <span>Last Seen:</span>
+                  <span>${statusInfo.lastSeen}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Status:</span>
+                  <span class="${statusBadge.replace("bg-", "text-")}">
+                    ${statusDetail}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Update counters
+      function updateCounters() {
+        const statusValues = Object.values(deviceState.statusMap);
+        deviceState.onlineCount = statusValues.filter(
+          (s) => s.status === "online" || s.status === "warning",
+        ).length;
+        deviceState.offlineCount =
+          deviceState.devices.length - deviceState.onlineCount;
+
+        totalDevicesEl.textContent = deviceState.devices.length;
+        onlineDevicesEl.textContent = deviceState.onlineCount;
+        offlineDevicesEl.textContent = deviceState.offlineCount;
+      }
+
+      // Render devices
+      function renderDevices() {
+        // Filter devices based on search input
+        const searchTerm = searchInput.value.toLowerCase();
+        const filteredDevices = deviceState.devices.filter(
+          (device) =>
+            device.name.toLowerCase().includes(searchTerm) ||
+            device.mac.toLowerCase().includes(searchTerm),
+        );
+
+        if (filteredDevices.length === 0) {
+          devicesContainer.innerHTML = `
+            <div class="col-12 text-center py-5">
+              <i class="fas fa-exclamation-triangle fa-2x text-yellow-500 mb-3"></i>
+              <p>No devices found</p>
+            </div>
+          `;
+          return;
+        }
+
+        devicesContainer.innerHTML = filteredDevices
+          .map(createDeviceCard)
+          .join("");
+      }
+
+      // Fetch devices from API
+      async function fetchDevices() {
+        try {
+          const response = await fetch("/api/devices");
+          if (!response.ok) {
+            throw new Error("Failed to fetch devices");
+          }
+          const devices = await response.json();
+          return devices;
+        } catch (error) {
+          console.error("Error fetching devices:", error);
+          return [];
+        }
+      }
+
+      // Update device display
+      async function updateDevices() {
+        devicesContainer.innerHTML = `
+          <div class="col-12 text-center py-5">
+            <div class="loading-spinner text-blue-400 mx-auto"></div>
+            <p class="mt-3">Loading devices...</p>
+          </div>
+        `;
+
+        const devices = await fetchDevices();
+        deviceState.devices = devices;
+
+        // Initialize status map if not already set
+        devices.forEach((device) => {
+          if (!deviceState.statusMap[device.mac]) {
+            deviceState.statusMap[device.mac] = {
+              status: "offline",
+              lastSeen: "Unknown",
+              distance: null,
+              lastNotification: null,
+            };
+          }
+        });
+
+        updateCounters();
+        renderDevices();
+      }
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", () => {
+        // Connect to WebSocket
+        connectWebSocket();
+
+        // Load initial data
+        updateDevices();
+
+        // Set up event listeners
+        refreshBtn.addEventListener("click", updateDevices);
+        searchInput.addEventListener("input", renderDevices);
+
+        // Update time
+        function updateTime() {
+          const ws = new WebSocket("ws://" + window.location.host + "/uptime");
+
+          ws.onmessage = function (event) {
+            document.getElementById("uptime").textContent =
+              "Uptime: " + event.data;
+          };
+
+          ws.onclose = function () {
+            console.log("Disconnected from uptime WebSocket.");
+            updateTime();
+          };
+
+          ws.onerror = function (err) {
+            console.error("WebSocket error:", err);
+          };
+        }
+
+        updateTime();
+      });
     </script>
   </body>
 </html>

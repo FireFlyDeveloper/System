@@ -131,6 +131,18 @@ export class PositioningSystem {
         console.log(
           `⚠️ Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
         );
+      } else {
+        console.log(`Device ${mac} is within movement threshold.`);
+        if (this.ws) {
+          this.ws.send(
+            JSON.stringify({
+              type: "update",
+              mac,
+              distance: distance.toFixed(2),
+              message: `Device ${mac} is within movement threshold.`,
+            }),
+          );
+        }
       }
     }
   }
