@@ -18,8 +18,10 @@ export default class PositionController {
       const savedPositions = initialMacs.reduce(
         (acc, device) => {
           const mac = device.mac.toLowerCase();
-          const { x, y } = device.saved_position;
-          acc[mac] = { x, y };
+          const pos = device.saved_position;
+          if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
+            acc[mac] = { x: pos.x, y: pos.y };
+          }
           return acc;
         },
         {} as { [mac: string]: { x: number; y: number } },
