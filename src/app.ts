@@ -10,6 +10,7 @@ import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
 import { UptimeClock } from "./utils/clock";
 import PositionController from "./controllers/positionController";
+import { authMiddleware } from "./middlewares/authMiddleware";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
@@ -60,6 +61,7 @@ app.get(
 
 app.get(
   "/status",
+  authMiddleware,
   upgradeWebSocket((c) => {
     return {
       onOpen(_event, ws) {
