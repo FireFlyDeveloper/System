@@ -17,13 +17,13 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.1;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1.9;
+  private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
-    2: { x: 7, y: 0 },
-    3: { x: 0, y: 10 },
-    4: { x: 7, y: 10 },
+    2: { x: 10, y: 0 },
+    3: { x: 0, y: 12 },
+    4: { x: 10, y: 12 },
   };
 
   private targetMacs: Set<string> = new Set();

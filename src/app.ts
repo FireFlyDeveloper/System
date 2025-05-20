@@ -92,7 +92,7 @@ app.get("/dashboard/admin", sessionsMiddleware, (c) =>
 app.route("/auth", authUser);
 app.route("/api", device);
 
-app.post("/logout", sessionsMiddleware, (c) => {
+app.get("/logout", sessionsMiddleware, (c) => {
   const session = c.get("session");
   session.forget("id");
   session.forget("jwt");
