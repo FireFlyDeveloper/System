@@ -1,3 +1,4 @@
+<!-- Full HTML Code -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -99,7 +100,6 @@
     </style>
   </head>
   <body class="min-h-screen">
-    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark py-3">
       <div class="container">
         <a class="navbar-brand d-flex align-items-center" href="#">
@@ -141,12 +141,9 @@
       </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="container py-4">
-      <!-- Header & System Status -->
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="text-2xl font-bold">System Settings</h1>
-
         <div class="system-status p-2 flex items-center text-sm">
           <div class="status-indicator mr-2"></div>
           <span>System Online</span>
@@ -158,7 +155,6 @@
       </div>
 
       <div class="row">
-        <!-- Settings Navigation -->
         <div class="col-md-3 mb-4">
           <div class="settings-card p-0">
             <div class="p-3 settings-header">
@@ -170,19 +166,9 @@
               <div class="nav flex-column nav-pills">
                 <a
                   class="nav-link active mb-2"
-                  href="#general"
+                  href="#devices"
                   data-bs-toggle="pill"
                 >
-                  <i class="fas fa-cog me-2"></i>General
-                </a>
-                <a
-                  class="nav-link mb-2"
-                  href="#notifications"
-                  data-bs-toggle="pill"
-                >
-                  <i class="fas fa-bell me-2"></i>Notifications
-                </a>
-                <a class="nav-link mb-2" href="#devices" data-bs-toggle="pill">
                   <i class="fas fa-laptop me-2"></i>Device Management
                 </a>
                 <a class="nav-link" href="#about" data-bs-toggle="pill">
@@ -193,218 +179,12 @@
           </div>
         </div>
 
-        <!-- Settings Content -->
         <div class="col-md-9">
           <div class="settings-card p-4">
             <div class="tab-content">
-              <!-- General Settings -->
-              <div class="tab-pane fade show active" id="general">
-                <h4 class="mb-4 border-bottom pb-2">General Settings</h4>
-
-                <form>
-                  <div class="mb-4">
-                    <label class="form-label">System Name</label>
-                    <input
-                      type="text"
-                      class="form-control"
-                      value="Security Monitoring System"
-                    />
-                    <div class="form-text text-gray-400">
-                      This name appears in the header and reports
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Time Zone</label>
-                    <select class="form-select">
-                      <option selected>UTC (Coordinated Universal Time)</option>
-                      <option>EST (Eastern Standard Time)</option>
-                      <option>PST (Pacific Standard Time)</option>
-                      <option>GMT (Greenwich Mean Time)</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Date Format</label>
-                    <select class="form-select">
-                      <option selected>MM/DD/YYYY</option>
-                      <option>DD/MM/YYYY</option>
-                      <option>YYYY-MM-DD</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Time Format</label>
-                    <select class="form-select">
-                      <option selected>24-hour (HH:MM:SS)</option>
-                      <option>12-hour (HH:MM:SS AM/PM)</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-4">
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="darkModeSwitch"
-                        checked
-                      />
-                      <label class="form-check-label" for="darkModeSwitch"
-                        >Dark Mode</label
-                      >
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Auto Refresh Interval</label>
-                    <select class="form-select">
-                      <option>10 seconds</option>
-                      <option selected>30 seconds</option>
-                      <option>1 minute</option>
-                      <option>5 minutes</option>
-                      <option>15 minutes</option>
-                      <option>30 minutes</option>
-                    </select>
-                  </div>
-
-                  <button type="button" class="btn btn-primary">
-                    Save Settings
-                  </button>
-                </form>
-              </div>
-
-              <!-- Notification Settings -->
-              <div class="tab-pane fade" id="notifications">
-                <h4 class="mb-4 border-bottom pb-2">Notification Settings</h4>
-
-                <form>
-                  <div class="mb-4">
-                    <label class="form-label">Email Notifications</label>
-                    <div class="form-check form-switch mb-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="emailDeviceOffline"
-                        checked
-                      />
-                      <label class="form-check-label" for="emailDeviceOffline"
-                        >Device Offline</label
-                      >
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="emailSecurityBreach"
-                        checked
-                      />
-                      <label class="form-check-label" for="emailSecurityBreach"
-                        >Security Breach</label
-                      >
-                    </div>
-                    <div class="form-check form-switch mb-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="emailSystemUpdate"
-                      />
-                      <label class="form-check-label" for="emailSystemUpdate"
-                        >System Updates</label
-                      >
-                    </div>
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="emailDailyReport"
-                        checked
-                      />
-                      <label class="form-check-label" for="emailDailyReport"
-                        >Daily Summary Report</label
-                      >
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">SMS Notifications</label>
-                    <div class="form-check form-switch mb-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="smsDeviceOffline"
-                        checked
-                      />
-                      <label class="form-check-label" for="smsDeviceOffline"
-                        >Device Offline</label
-                      >
-                    </div>
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="smsSecurityBreach"
-                        checked
-                      />
-                      <label class="form-check-label" for="smsSecurityBreach"
-                        >Security Breach</label
-                      >
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Contact Email</label>
-                    <input
-                      type="email"
-                      class="form-control"
-                      value="admin@company.com"
-                    />
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Contact Phone</label>
-                    <input
-                      type="tel"
-                      class="form-control"
-                      value="+1 (555) 123-4567"
-                    />
-                  </div>
-
-                  <button type="button" class="btn btn-primary">
-                    Save Settings
-                  </button>
-                </form>
-              </div>
-
-              <!-- Device Management -->
-              <div class="tab-pane fade" id="devices">
+              <div class="tab-pane fade show active" id="devices">
                 <h4 class="mb-4 border-bottom pb-2">Device Management</h4>
-
                 <form>
-                  <div class="mb-4">
-                    <label class="form-label">Device Detection</label>
-                    <div class="form-check form-switch mb-2">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="autoDetect"
-                        checked
-                      />
-                      <label class="form-check-label" for="autoDetect"
-                        >Auto-detect new devices</label
-                      >
-                    </div>
-                    <div class="form-check form-switch">
-                      <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="autoRegister"
-                      />
-                      <label class="form-check-label" for="autoRegister"
-                        >Auto-register new devices</label
-                      >
-                    </div>
-                  </div>
-
                   <div class="mb-4">
                     <label class="form-label">Offline Detection</label>
                     <div class="d-flex align-items-center">
@@ -421,52 +201,14 @@
                   </div>
 
                   <div class="mb-4">
-                    <label class="form-label">Device Icons</label>
-                    <div class="d-flex flex-wrap">
-                      <div class="me-4 mb-3">
-                        <div class="d-flex align-items-center mb-2">
-                          <i
-                            class="fas fa-laptop fa-2x me-2 text-green-500"
-                          ></i>
-                          <span>Online</span>
-                        </div>
-                        <input
-                          type="color"
-                          class="form-control form-control-color"
-                          value="#2ecc71"
-                        />
-                      </div>
-                      <div>
-                        <div class="d-flex align-items-center mb-2">
-                          <i class="fas fa-laptop fa-2x me-2 text-red-500"></i>
-                          <span>Offline</span>
-                        </div>
-                        <input
-                          type="color"
-                          class="form-control form-control-color"
-                          value="#e74c3c"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <label class="form-label">Network Scan Interval</label>
-                    <select class="form-select">
-                      <option>1 minute</option>
-                      <option selected>5 minutes</option>
-                      <option>15 minutes</option>
-                      <option>30 minutes</option>
-                      <option>1 hour</option>
-                    </select>
-                  </div>
-
-                  <div class="mb-4">
-                    <button type="button" class="btn btn-outline-primary me-2">
-                      <i class="fas fa-plus me-1"></i> Add Device Manually
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary">
-                      <i class="fas fa-sync me-1"></i> Scan Network
+                    <label class="form-label">Add Devices</label>
+                    <div id="device-list"></div>
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary mt-2"
+                      onclick="addDeviceInput()"
+                    >
+                      <i class="fas fa-plus me-1"></i> Add Device
                     </button>
                   </div>
 
@@ -476,7 +218,6 @@
                 </form>
               </div>
 
-              <!-- About -->
               <div class="tab-pane fade" id="about">
                 <h4 class="mb-4 border-bottom pb-2">About System</h4>
 
@@ -540,128 +281,6 @@
                     </div>
                   </div>
                 </div>
-
-                <div class="mb-4">
-                  <h5 class="mb-3">Updates</h5>
-                  <div class="settings-card p-3 mb-3">
-                    <div
-                      class="d-flex justify-content-between align-items-center"
-                    >
-                      <div>
-                        <h6 class="mb-0">System is up to date</h6>
-                        <p class="text-sm text-gray-400 mb-0">
-                          Last checked: Today, 04:30
-                        </p>
-                      </div>
-                      <button class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-sync-alt me-1"></i> Check for Updates
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mb-4">
-                  <h5 class="mb-3">Support</h5>
-                  <div class="settings-card p-3">
-                    <div class="row">
-                      <div class="col-md-6 mb-3 mb-md-0">
-                        <h6 class="mb-2">Documentation</h6>
-                        <a
-                          href="#"
-                          class="btn btn-sm btn-outline-info d-block mb-2"
-                        >
-                          <i class="fas fa-book me-1"></i> User Guide
-                        </a>
-                        <a href="#" class="btn btn-sm btn-outline-info d-block">
-                          <i class="fas fa-code me-1"></i> API Documentation
-                        </a>
-                      </div>
-                      <div class="col-md-6">
-                        <h6 class="mb-2">Contact Support</h6>
-                        <a
-                          href="mailto:support@securitymonitoring.com"
-                          class="btn btn-sm btn-outline-info d-block mb-2"
-                        >
-                          <i class="fas fa-envelope me-1"></i> Email Support
-                        </a>
-                        <a href="#" class="btn btn-sm btn-outline-info d-block">
-                          <i class="fas fa-headset me-1"></i> Live Chat
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h5 class="mb-3">System Logs</h5>
-                  <div class="settings-card p-3">
-                    <div
-                      class="d-flex justify-content-between align-items-center mb-3"
-                    >
-                      <h6 class="mb-0">Activity Logs</h6>
-                      <div>
-                        <button class="btn btn-sm btn-outline-secondary me-2">
-                          <i class="fas fa-download me-1"></i> Export
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger">
-                          <i class="fas fa-trash me-1"></i> Clear
-                        </button>
-                      </div>
-                    </div>
-
-                    <div
-                      class="table-responsive"
-                      style="max-height: 200px; overflow-y: auto"
-                    >
-                      <table class="table table-dark table-sm">
-                        <thead>
-                          <tr>
-                            <th>Time</th>
-                            <th>Type</th>
-                            <th>User</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td class="text-sm">05:30:12</td>
-                            <td><span class="badge bg-info">Info</span></td>
-                            <td>admin</td>
-                            <td>System settings updated</td>
-                          </tr>
-                          <tr>
-                            <td class="text-sm">05:15:23</td>
-                            <td>
-                              <span class="badge bg-success">Success</span>
-                            </td>
-                            <td>admin</td>
-                            <td>User login</td>
-                          </tr>
-                          <tr>
-                            <td class="text-sm">04:30:01</td>
-                            <td>
-                              <span class="badge bg-warning">Warning</span>
-                            </td>
-                            <td>System</td>
-                            <td>Device Laptop-003 disconnected</td>
-                          </tr>
-                          <tr>
-                            <td class="text-sm">04:15:45</td>
-                            <td><span class="badge bg-info">Info</span></td>
-                            <td>jsmith</td>
-                            <td>Device scan initiated</td>
-                          </tr>
-                          <tr>
-                            <td class="text-sm">03:59:07</td>
-                            <td><span class="badge bg-danger">Error</span></td>
-                            <td>System</td>
-                            <td>Failed login attempt: rwilson</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -669,16 +288,13 @@
       </div>
     </div>
 
-    <!-- Footer -->
     <footer class="text-center py-4 text-gray-500 text-sm mt-auto">
       <p>© 2025 Security Monitoring System. All rights reserved.</p>
       <p>Version 1.0.0</p>
     </footer>
 
-    <!-- Bootstrap & Custom Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-      // Update time
       function updateTime() {
         const now = new Date();
         const timeString = now.toLocaleTimeString("en-US", {
@@ -690,22 +306,35 @@
         document.getElementById("current-time").textContent = timeString;
       }
 
-      // Initial time set and interval
       updateTime();
       setInterval(updateTime, 1000);
 
-      // Sample script for dark mode toggle functionality
-      document
-        .getElementById("darkModeSwitch")
-        .addEventListener("change", function () {
-          // In a real implementation, this would toggle between light/dark themes
-          // For demo purposes, we'll just show an alert
-          if (this.checked) {
-            alert("Dark mode enabled");
-          } else {
-            alert("Light mode enabled");
-          }
-        });
+      function addDeviceInput() {
+        const container = document.createElement("div");
+        container.className = "d-flex gap-2 mb-2 align-items-center";
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "form-control";
+        nameInput.placeholder = "Device Name";
+
+        const macInput = document.createElement("input");
+        macInput.type = "text";
+        macInput.className = "form-control";
+        macInput.placeholder = "MAC Address";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "btn btn-danger btn-sm";
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteBtn.onclick = () => container.remove();
+
+        container.appendChild(nameInput);
+        container.appendChild(macInput);
+        container.appendChild(deleteBtn);
+
+        document.getElementById("device-list").appendChild(container);
+      }
     </script>
   </body>
 </html>
