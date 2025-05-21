@@ -25,6 +25,11 @@ export default class PositionController {
 
   async init() {
     const initialMacs = await getAllDevices();
+    if (!initialMacs || initialMacs.length === 0) {
+      console.error("No devices found in the database");
+      return;
+    }
+    this.positioningSystem.setDeviceIdMap(initialMacs);
     const macs = initialMacs.map((device) => device.mac.toLowerCase());
     this.positioningSystem.setTargetMacs(macs);
 

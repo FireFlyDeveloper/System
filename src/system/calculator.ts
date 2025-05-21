@@ -36,7 +36,7 @@ export class PositioningSystem {
   private readonly offlineCheckInterval = 5000; // 5 seconds
   private violationCounts: { [mac: string]: number } = {};
   private readonly maxViolationsBeforeAlert = 5;
-  private readonly violationResetInterval = 30000; // 30 seconds
+  private readonly violationResetInterval = 10000; // 30 seconds
   private deviceIdMap: { [mac: string]: number } = {}; // Map MAC addresses to device IDs
 
   constructor() {
