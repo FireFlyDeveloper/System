@@ -94,7 +94,7 @@ app.route("/auth", authUser);
 app.route("/api", device);
 app.route("/api", alerts);
 
-app.get("/logout", sessionsMiddleware, (c) => {
+app.post("/logout", sessionsMiddleware, (c) => {
   const session = c.get("session");
   session.forget("id");
   session.forget("jwt");
