@@ -26,4 +26,21 @@ export class AuthController {
       return ctx.json({ message: "Failed to update user" }, 500);
     }
   }
+
+  async changePassword(ctx: Context) {
+    const { oldPassword, newPassword } = await ctx.req.json();
+    const session = ctx.get("session");
+    const username = session.get("id");
+    const isValidUser = await getUser(username, oldPassword);
+    if (isValidUser) {
+      const isUpdated = await updateUser(username, newPassword);
+      if (isUpdated) {
+        return ctx.json({ message: "Password updated successfully" });
+      } else {
+        return ctx.json({ message: "Failed to update password" }, 500);
+      }
+    } else {
+      return ctx.json({ message: "Invalid old password" }, 401);
+    }
+  }
 }

@@ -115,7 +115,7 @@
     <div class="container py-4">
       <!-- Change Password Section -->
       <div class="admin-card p-4 mb-4">
-        <form>
+        <form id="changePasswordForm">
           <div class="mb-3">
             <label for="currentPassword" class="form-label"
               >Current Password</label
@@ -167,6 +167,46 @@
     <!-- Bootstrap & Custom Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
+      document
+        .getElementById("changePasswordForm")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault(); // Prevent the default form submission
+
+          const oldPassword = document.getElementById("currentPassword").value;
+          const newPassword = document.getElementById("newPassword").value;
+          const confirmPassword =
+            document.getElementById("confirmPassword").value;
+
+          // Check if new password and confirm password match
+          if (newPassword !== confirmPassword) {
+            alert("New password and confirm password do not match.");
+            return;
+          }
+
+          // Send the request to update the password
+          try {
+            const response = await fetch("/auth/update-password", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ oldPassword, newPassword }),
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+              alert(result.message);
+              // Optionally, clear the form fields
+              document.getElementById("changePasswordForm").reset();
+            } else {
+              alert(result.message);
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            alert("An error occurred while updating the password.");
+          }
+        });
+
       function logout() {
         // Perform logout action
         fetch("/logout", {

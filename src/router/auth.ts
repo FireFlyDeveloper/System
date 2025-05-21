@@ -8,5 +8,6 @@ const authController = new AuthController();
 
 router.post("/user", authController.login);
 router.post("/update", authMiddleware, authController.update);
+router.post("/update-password", authMiddleware, authController.changePassword);
 
 export default router;
