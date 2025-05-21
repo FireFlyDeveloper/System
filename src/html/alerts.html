@@ -268,7 +268,6 @@
 
       // Update uptime via WebSocket
       function updateUptime() {
-        // Close existing connection if any
         if (uptimeWebSocket) {
           uptimeWebSocket.close();
         }
@@ -284,7 +283,6 @@
 
         uptimeWebSocket.onclose = function () {
           console.log("Disconnected from uptime WebSocket.");
-          // Attempt to reconnect after 5 seconds
           setTimeout(updateUptime, 5000);
         };
 
@@ -293,7 +291,7 @@
         };
       }
 
-      // Generate pagination buttons with max 3 pages + next button
+      // Generate pagination buttons
       function generatePagination() {
         const pagination = document.getElementById("pagination");
         pagination.innerHTML = "";
@@ -336,7 +334,7 @@
           pagination.appendChild(currentLi);
         }
 
-        // Show last page if there are multiple pages and we're not already showing it
+        // Show last page if there are multiple pages
         if (totalPages > 1 && currentPage !== totalPages) {
           const lastLi = document.createElement("li");
           lastLi.className = `page-item ${currentPage === totalPages ? "active" : ""}`;
@@ -365,18 +363,17 @@
         pagination.appendChild(nextLi);
       }
 
-      // Manual page change (user-initiated)
+      // Manual page change
       async function manualChangePage(page) {
         isManualRefresh = true;
         await changePage(page);
         isManualRefresh = false;
       }
 
-      // Change page - now with loading state
+      // Change page
       async function changePage(page) {
         if (page < 1 || page > totalPages || page === currentPage) return;
 
-        // Show loading state
         const alertsList = document.getElementById("alerts-list");
         alertsList.innerHTML = `
           <div class="text-center py-4">
@@ -386,22 +383,12 @@
         `;
 
         currentPage = page;
-        await fetchAlerts(); // Wait for fetch to complete
+        await fetchAlerts();
       }
 
-      // Filter alerts based on current filter
-      function filterAlerts(alerts) {
-        if (currentFilter === "all") {
-          return alerts;
-        }
-        return alerts.filter((alert) => alert.type === currentFilter);
-      }
-
-      // Search alerts based on search term
+      // Search alerts
       function searchAlerts(alerts) {
-        if (!currentSearchTerm) {
-          return alerts;
-        }
+        if (!currentSearchTerm) return alerts;
         const term = currentSearchTerm.toLowerCase();
         return alerts.filter(
           (alert) =>
@@ -410,7 +397,7 @@
         );
       }
 
-      // Update filter buttons active state
+      // Update filter buttons
       function updateFilterButtons() {
         const buttons = document.querySelectorAll(".filter-btn");
         buttons.forEach((button) => {
@@ -422,19 +409,19 @@
         });
       }
 
-      // Fetch alerts from API with pagination
+      // Fetch alerts from API
       async function fetchAlerts() {
         try {
-          // Show loading state in pagination if manual refresh
           if (isManualRefresh) {
             const pagination = document.getElementById("pagination");
             pagination.classList.add("disabled");
           }
 
-          const response = await fetch(`/api/alerts/${currentPage}`);
-          if (!response.ok) {
+          const response = await fetch(
+            `/api/alerts/${currentPage}/${currentFilter}`,
+          );
+          if (!response.ok)
             throw new Error(`HTTP error! status: ${response.status}`);
-          }
 
           const data = await response.json();
           const alertsList = document.getElementById("alerts-list");
@@ -443,7 +430,6 @@
           let criticalCount = 0;
           let warningCount = 0;
 
-          // Update pagination info
           totalAlerts = data.total || 0;
           totalPages = Math.ceil(totalAlerts / (data.itemsPerPage || 20));
           generatePagination();
@@ -452,23 +438,16 @@
             alertsList.innerHTML =
               '<div class="text-center py-4 text-gray-500">No alerts found</div>';
           } else {
-            // Filter alerts based on current filter and search
-            let filteredAlerts = filterAlerts(data.alerts);
-            filteredAlerts = searchAlerts(filteredAlerts);
+            const filteredAlerts = searchAlerts(data.alerts);
 
             if (filteredAlerts.length === 0) {
               alertsList.innerHTML =
-                '<div class="text-center py-4 text-gray-500">No alerts match your filter criteria</div>';
+                '<div class="text-center py-4 text-gray-500">No alerts match your search criteria</div>';
             } else {
-              // Display alerts
               filteredAlerts.forEach((alert) => {
-                const alertType =
-                  alert.type ||
-                  (alert.message.toLowerCase().includes("warning")
-                    ? "warning"
-                    : alert.message.toLowerCase().includes("critical")
-                      ? "critical"
-                      : "info");
+                const alertType = alert.type.toLowerCase();
+                if (alertType === "critical") criticalCount++;
+                else if (alertType === "warning") warningCount++;
 
                 const alertCard = document.createElement("div");
                 alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
@@ -489,15 +468,10 @@
                   </div>
                 `;
                 alertsList.appendChild(alertCard);
-
-                // Update counts based on actual alert type
-                if (alertType === "critical") criticalCount++;
-                else if (alertType === "warning") warningCount++;
               });
             }
           }
 
-          // Update counts
           document.getElementById("critical-count").textContent = criticalCount;
           document.getElementById("warning-count").textContent = warningCount;
         } catch (error) {
@@ -510,7 +484,6 @@
             </div>
           `;
         } finally {
-          // Remove loading state
           if (isManualRefresh) {
             const pagination = document.getElementById("pagination");
             pagination.classList.remove("disabled");
@@ -518,20 +491,17 @@
         }
       }
 
-      // Setup auto-refresh every 3 seconds
+      // Setup auto-refresh
       function setupAutoRefresh() {
-        // Clear existing interval if any
         if (refreshInterval) {
           clearInterval(refreshInterval);
         }
 
-        // Set up new interval
         refreshInterval = setInterval(() => {
           if (!isManualRefresh) {
-            // Don't auto-refresh during manual operations
             fetchAlerts();
           }
-        }, 3000); // 3 seconds
+        }, 3000);
       }
 
       // Initial setup
@@ -540,22 +510,22 @@
         fetchAlerts();
         setupAutoRefresh();
 
-        // Setup filter button event listeners
+        // Filter buttons
         document.querySelectorAll(".filter-btn").forEach((button) => {
           button.addEventListener("click", () => {
             currentFilter = button.dataset.filter;
+            currentPage = 1; // Reset to first page when changing filter
             updateFilterButtons();
             fetchAlerts();
           });
         });
 
-        // Setup search functionality
+        // Search functionality
         document.getElementById("search-btn").addEventListener("click", () => {
           currentSearchTerm = document.getElementById("search-input").value;
           fetchAlerts();
         });
 
-        // Also trigger search on Enter key
         document
           .getElementById("search-input")
           .addEventListener("keypress", (e) => {
@@ -565,7 +535,7 @@
             }
           });
 
-        // Clean up on page unload
+        // Clean up
         window.addEventListener("beforeunload", () => {
           if (uptimeWebSocket) {
             uptimeWebSocket.close();

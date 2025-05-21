@@ -24,8 +24,15 @@ export class AlertController {
   }
 
   async getAll(ctx: Context) {
-    const page = Number(ctx.req.query("page")) || 1;
+    const page = Number(ctx.req.param("page")) || 1;
     const alerts = await getAllAlerts(page);
+    return ctx.json(alerts);
+  }
+
+  async getAllFilter(ctx: Context) {
+    const page = Number(ctx.req.param("page")) || 1;
+    const filter = ctx.req.param("filter");
+    const alerts = await getAllAlerts(page, filter);
     return ctx.json(alerts);
   }
 

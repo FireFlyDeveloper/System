@@ -27,7 +27,7 @@ export const addAlert = async (
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "INSERT INTO alerts (device_id, message, type) VALUES ($1, $2, $3)", // Updated query
+      "INSERT INTO alerts (device_id, message, type) VALUES ($1, $2, $3)",
       [device_id, message, type],
     );
     return true;
@@ -51,20 +51,43 @@ export const getAlertsByDeviceId = async (device_id: number) => {
   }
 };
 
-// Get all alerts with pagination (20 items per page) and total count
-export const getAllAlerts = async (page: number = 1) => {
+// Get all alerts with pagination (20 items per page) and optional type filter
+export const getAllAlerts = async (
+  page: number = 1,
+  type?: string, // 'warning' | 'critical' or undefined
+) => {
   const itemsPerPage = 20;
   const offset = (page - 1) * itemsPerPage;
 
+  // Only apply filter if type is 'warning' or 'critical'
+  const validTypes = ["warning", "critical"];
+  const useFilter = type && validTypes.includes(type);
+
+  // Build query parts dynamically
+  const whereClause = useFilter ? `WHERE type = $1` : ``;
+  const orderLimitOffset = `ORDER BY created_at DESC LIMIT $${useFilter ? 2 : 1} OFFSET $${useFilter ? 3 : 2}`;
+
+  // Build params array
+  const params = [];
+  if (useFilter) {
+    params.push(type);
+  }
+  params.push(itemsPerPage, offset);
+
   try {
-    // Get paginated results
+    // Fetch paginated alerts
     const alertsQuery = pool.query(
-      "SELECT * FROM alerts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-      [itemsPerPage, offset],
+      `SELECT * FROM alerts ${whereClause} ${orderLimitOffset}`,
+      params,
     );
 
-    // Get total count
-    const countQuery = pool.query("SELECT COUNT(*) FROM alerts");
+    // Fetch total count with same filter
+    const countParams = useFilter ? [type] : [];
+    const countWhere = useFilter ? `WHERE type = $1` : ``;
+    const countQuery = pool.query(
+      `SELECT COUNT(*) FROM alerts ${countWhere}`,
+      countParams,
+    );
 
     const [alertsResult, countResult] = await Promise.all([
       alertsQuery,
@@ -76,6 +99,7 @@ export const getAllAlerts = async (page: number = 1) => {
       total: parseInt(countResult.rows[0].count, 10),
       page,
       itemsPerPage,
+      filterType: useFilter ? type : "all",
     };
   } catch (error) {
     console.error("Error fetching all alerts:", error);
@@ -84,6 +108,7 @@ export const getAllAlerts = async (page: number = 1) => {
       total: 0,
       page,
       itemsPerPage,
+      filterType: useFilter ? type : "all",
     };
   }
 };

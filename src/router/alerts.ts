@@ -13,6 +13,11 @@ router.get(
   alertController.getByDeviceId,
 );
 router.get("/alerts/:page", authMiddleware, alertController.getAll);
+router.get(
+  "/alerts/:page/:filter",
+  authMiddleware,
+  alertController.getAllFilter,
+);
 router.delete("/alerts/:id", authMiddleware, alertController.delete);
 
 export default router;
