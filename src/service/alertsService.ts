@@ -50,15 +50,40 @@ export const getAlertsByDeviceId = async (device_id: number) => {
 };
 
 // Get all alerts
-export const getAllAlerts = async () => {
+// Get all alerts with pagination (20 items per page) and total count
+export const getAllAlerts = async (page: number = 1) => {
+  const itemsPerPage = 20;
+  const offset = (page - 1) * itemsPerPage;
+
   try {
-    const result = await pool.query(
-      "SELECT * FROM alerts ORDER BY created_at DESC",
+    // Get paginated results
+    const alertsQuery = pool.query(
+      "SELECT * FROM alerts ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [itemsPerPage, offset],
     );
-    return result.rows;
+
+    // Get total count
+    const countQuery = pool.query("SELECT COUNT(*) FROM alerts");
+
+    const [alertsResult, countResult] = await Promise.all([
+      alertsQuery,
+      countQuery,
+    ]);
+
+    return {
+      alerts: alertsResult.rows,
+      total: parseInt(countResult.rows[0].count, 10),
+      page,
+      itemsPerPage,
+    };
   } catch (error) {
     console.error("Error fetching all alerts:", error);
-    return [];
+    return {
+      alerts: [],
+      total: 0,
+      page,
+      itemsPerPage,
+    };
   }
 };
 

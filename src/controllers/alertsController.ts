@@ -24,7 +24,8 @@ export class AlertController {
   }
 
   async getAll(ctx: Context) {
-    const alerts = await getAllAlerts();
+    const page = Number(ctx.req.query("page")) || 1;
+    const alerts = await getAllAlerts(page);
     return ctx.json(alerts);
   }
 

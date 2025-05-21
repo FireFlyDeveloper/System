@@ -82,6 +82,27 @@
       .badge-info {
         background-color: #3498db;
       }
+      .page-link {
+        cursor: pointer;
+      }
+      .pagination.disabled {
+        pointer-events: none;
+        opacity: 0.6;
+      }
+      .loading-spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body class="min-h-screen">
@@ -110,7 +131,6 @@
             <li class="nav-item">
               <a class="nav-link active" href="/dashboard/alerts">
                 <i class="fas fa-bell me-1"></i> Alerts
-                <!-- Removed the badge for alert count -->
               </a>
             </li>
             <li class="nav-item">
@@ -197,40 +217,8 @@
 
       <!-- Pagination -->
       <nav aria-label="Alert pagination" class="d-flex justify-content-center">
-        <ul class="pagination pagination-sm">
-          <li class="page-item disabled">
-            <a
-              class="page-link bg-gray-800 border-gray-700 text-gray-400"
-              href="#"
-              tabindex="-1"
-              aria-disabled="true"
-              >Previous</a
-            >
-          </li>
-          <li class="page-item active">
-            <a class="page-link bg-blue-600 border-blue-700" href="#">1</a>
-          </li>
-          <li class="page-item">
-            <a
-              class="page-link bg-gray-800 border-gray-700 text-gray-200"
-              href="#"
-              >2</a
-            >
-          </li>
-          <li class="page-item">
-            <a
-              class="page-link bg-gray-800 border-gray-700 text-gray-200"
-              href="#"
-              >3</a
-            >
-          </li>
-          <li class="page-item">
-            <a
-              class="page-link bg-gray-800 border-gray-700 text-gray-200"
-              href="#"
-              >Next</a
-            >
-          </li>
+        <ul class="pagination pagination-sm" id="pagination">
+          <!-- Pagination will be dynamically inserted here -->
         </ul>
       </nav>
     </div>
@@ -244,73 +232,256 @@
     <!-- Bootstrap & Custom Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-      // Update uptime
-      function updateUptime() {
-        const ws = new WebSocket("ws://" + window.location.host + "/uptime");
+      // Current page state
+      let currentPage = 1;
+      let totalPages = 1;
+      let totalAlerts = 0;
+      let uptimeWebSocket = null;
+      let refreshInterval = null;
+      let isManualRefresh = false;
 
-        ws.onmessage = function (event) {
+      // Update uptime via WebSocket
+      function updateUptime() {
+        // Close existing connection if any
+        if (uptimeWebSocket) {
+          uptimeWebSocket.close();
+        }
+
+        uptimeWebSocket = new WebSocket(
+          "ws://" + window.location.host + "/uptime",
+        );
+
+        uptimeWebSocket.onmessage = function (event) {
           document.getElementById("uptime").textContent =
             "Uptime: " + event.data;
         };
 
-        ws.onclose = function () {
+        uptimeWebSocket.onclose = function () {
           console.log("Disconnected from uptime WebSocket.");
-          updateUptime(); // Reconnect
+          // Attempt to reconnect after 5 seconds
+          setTimeout(updateUptime, 5000);
         };
 
-        ws.onerror = function (err) {
+        uptimeWebSocket.onerror = function (err) {
           console.error("WebSocket error:", err);
         };
       }
 
-      // Fetch alerts from API
+      // Generate pagination buttons with max 3 pages + next button
+      function generatePagination() {
+        const pagination = document.getElementById("pagination");
+        pagination.innerHTML = "";
+
+        // Previous button
+        const prevLi = document.createElement("li");
+        prevLi.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+        prevLi.innerHTML = `
+          <a class="page-link bg-gray-800 border-gray-700 text-gray-400" ${
+            currentPage === 1
+              ? ""
+              : 'onclick="manualChangePage(' + (currentPage - 1) + ')"'
+          }>
+            <i class="fas fa-chevron-left"></i>
+          </a>
+        `;
+        pagination.appendChild(prevLi);
+
+        // Always show first page
+        if (totalPages > 0) {
+          const firstLi = document.createElement("li");
+          firstLi.className = `page-item ${currentPage === 1 ? "active" : ""}`;
+          firstLi.innerHTML = `
+            <a class="page-link ${
+              1 === currentPage
+                ? "bg-blue-600 border-blue-700"
+                : "bg-gray-800 border-gray-700 text-gray-200"
+            }" onclick="manualChangePage(1)">1</a>
+          `;
+          pagination.appendChild(firstLi);
+        }
+
+        // Show current page if it's not the first or last page
+        if (currentPage > 1 && currentPage < totalPages) {
+          const currentLi = document.createElement("li");
+          currentLi.className = "page-item active";
+          currentLi.innerHTML = `
+            <a class="page-link bg-blue-600 border-blue-700">${currentPage}</a>
+          `;
+          pagination.appendChild(currentLi);
+        }
+
+        // Show last page if there are multiple pages and we're not already showing it
+        if (totalPages > 1 && currentPage !== totalPages) {
+          const lastLi = document.createElement("li");
+          lastLi.className = `page-item ${currentPage === totalPages ? "active" : ""}`;
+          lastLi.innerHTML = `
+            <a class="page-link ${
+              totalPages === currentPage
+                ? "bg-blue-600 border-blue-700"
+                : "bg-gray-800 border-gray-700 text-gray-200"
+            }" onclick="manualChangePage(${totalPages})">${totalPages}</a>
+          `;
+          pagination.appendChild(lastLi);
+        }
+
+        // Next button
+        const nextLi = document.createElement("li");
+        nextLi.className = `page-item ${currentPage === totalPages ? "disabled" : ""}`;
+        nextLi.innerHTML = `
+          <a class="page-link bg-gray-800 border-gray-700 text-gray-400" ${
+            currentPage === totalPages
+              ? ""
+              : 'onclick="manualChangePage(' + (currentPage + 1) + ')"'
+          }>
+            <i class="fas fa-chevron-right"></i>
+          </a>
+        `;
+        pagination.appendChild(nextLi);
+      }
+
+      // Manual page change (user-initiated)
+      async function manualChangePage(page) {
+        isManualRefresh = true;
+        await changePage(page);
+        isManualRefresh = false;
+      }
+
+      // Change page - now with loading state
+      async function changePage(page) {
+        if (page < 1 || page > totalPages || page === currentPage) return;
+
+        // Show loading state
+        const alertsList = document.getElementById("alerts-list");
+        alertsList.innerHTML = `
+          <div class="text-center py-4">
+            <div class="loading-spinner"></div>
+            <span class="ms-2">Loading alerts...</span>
+          </div>
+        `;
+
+        currentPage = page;
+        await fetchAlerts(); // Wait for fetch to complete
+      }
+
+      // Fetch alerts from API with pagination
       async function fetchAlerts() {
         try {
-          const response = await fetch("/api/alerts");
-          const alerts = await response.json();
+          // Show loading state in pagination if manual refresh
+          if (isManualRefresh) {
+            const pagination = document.getElementById("pagination");
+            pagination.classList.add("disabled");
+          }
+
+          const response = await fetch(`/api/alerts/${currentPage}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
           const alertsList = document.getElementById("alerts-list");
           alertsList.innerHTML = "";
 
           let criticalCount = 0;
           let warningCount = 0;
+          let infoCount = 0;
 
-          alerts.forEach((alert) => {
-            const alertCard = document.createElement("div");
-            alertCard.className = "alert-card alert-critical p-4 mb-3";
-            alertCard.innerHTML = `
-              <div class="d-flex align-items-center mb-2">
-                <span class="badge badge-critical me-2">Critical</span>
-                <h5 class="mb-0">${alert.message}</h5>
-                <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
-              </div>
-              <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-laptop fa-lg status-offline me-2"></i>
-                  <div>
-                    <span class="font-medium">Device-${alert.device_id}</span>
+          // Update pagination info
+          totalAlerts = data.total || 0;
+          totalPages = Math.ceil(totalAlerts / (data.itemsPerPage || 20));
+          generatePagination();
+
+          if (!data.alerts || data.alerts.length === 0) {
+            alertsList.innerHTML =
+              '<div class="text-center py-4 text-gray-500">No alerts found</div>';
+          } else {
+            // Display alerts
+            data.alerts.forEach((alert) => {
+              const alertType = alert.message.toLowerCase().includes("warning")
+                ? "warning"
+                : alert.message.toLowerCase().includes("critical")
+                  ? "critical"
+                  : "info";
+
+              const alertCard = document.createElement("div");
+              alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
+              alertCard.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                  <span class="badge badge-${alertType} me-2">${alertType.charAt(0).toUpperCase() + alertType.slice(1)}</span>
+                  <h5 class="mb-0">${alert.message}</h5>
+                  <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
+                </div>
+                <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-laptop fa-lg ${alertType === "critical" ? "status-offline" : "status-present"} me-2"></i>
+                    <div>
+                      <span class="font-medium">Device-${alert.device_id}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            `;
-            alertsList.appendChild(alertCard);
-            criticalCount++; // Increment critical count for demonstration
-          });
+              `;
+              alertsList.appendChild(alertCard);
+
+              // Update counts based on actual alert type
+              if (alertType === "critical") criticalCount++;
+              else if (alertType === "warning") warningCount++;
+              else infoCount++;
+            });
+          }
 
           // Update counts
           document.getElementById("critical-count").textContent = criticalCount;
           document.getElementById("warning-count").textContent = warningCount;
         } catch (error) {
           console.error("Error fetching alerts:", error);
+          const alertsList = document.getElementById("alerts-list");
+          alertsList.innerHTML = `
+            <div class="text-center py-4 text-red-500">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              Error loading alerts. Please try again.
+            </div>
+          `;
+        } finally {
+          // Remove loading state
+          if (isManualRefresh) {
+            const pagination = document.getElementById("pagination");
+            pagination.classList.remove("disabled");
+          }
         }
       }
 
-      // Initial setup
-      updateUptime(); // Start uptime updates
-      fetchAlerts(); // Fetch alerts on page load
+      // Setup auto-refresh every 3 seconds
+      function setupAutoRefresh() {
+        // Clear existing interval if any
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+        }
 
-      // Fetch alerts every 3 seconds
-      setInterval(fetchAlerts, 3000);
+        // Set up new interval
+        refreshInterval = setInterval(() => {
+          if (!isManualRefresh) {
+            // Don't auto-refresh during manual operations
+            fetchAlerts();
+          }
+        }, 3000); // 3 seconds
+      }
+
+      // Initial setup
+      document.addEventListener("DOMContentLoaded", () => {
+        updateUptime();
+        fetchAlerts();
+        setupAutoRefresh();
+
+        // Clean up on page unload
+        window.addEventListener("beforeunload", () => {
+          if (uptimeWebSocket) {
+            uptimeWebSocket.close();
+          }
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+          }
+        });
+      });
     </script>
   </body>
 </html>
