@@ -183,105 +183,106 @@
             <div class="tab-content">
               <div class="tab-pane fade show active" id="devices">
                 <h4 class="mb-4 border-bottom pb-2">Device Management</h4>
-                <form>
-                  <div class="mb-4">
-                    <label class="form-label">Offline Detection</label>
-                    <div class="d-flex align-items-center">
-                      <span class="me-2">Mark device as offline after</span>
-                      <select class="form-select w-auto">
-                        <option>5 minutes</option>
-                        <option selected>15 minutes</option>
-                        <option>30 minutes</option>
-                        <option>1 hour</option>
-                        <option>6 hours</option>
-                      </select>
-                      <span class="ms-2">of inactivity</span>
-                    </div>
-                  </div>
 
-                  <div class="mb-4">
-                    <label class="form-label">Add Devices</label>
-                    <div id="device-list"></div>
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary mt-2"
-                      onclick="addDeviceInput()"
-                    >
-                      <i class="fas fa-plus me-1"></i> Add Device
-                    </button>
-                  </div>
+                <!-- Existing devices table -->
+                <div class="table-responsive mb-4">
+                  <table class="table table-dark table-striped align-middle">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>MAC</th>
+                        <th>Enabled</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="device-list">
+                      <!-- populated by JS -->
+                    </tbody>
+                  </table>
+                </div>
 
-                  <button type="button" class="btn btn-primary">
-                    Save Settings
+                <!-- Add new devices -->
+                <div class="mb-4">
+                  <label class="form-label">Add Devices</label>
+                  <div id="new-device-list"></div>
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary mt-2"
+                    onclick="addDeviceInput()"
+                  >
+                    <i class="fas fa-plus me-1"></i> Add Device
                   </button>
-                </form>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="addDevices()"
+                >
+                  Save New Devices
+                </button>
               </div>
 
+              <!-- About pane unchanged -->
               <div class="tab-pane fade" id="about">
-                <h4 class="mb-4 border-bottom pb-2">About System</h4>
-
-                <div class="row mb-4">
-                  <div class="col-md-6">
-                    <h5>Security Monitoring System</h5>
-                    <p>Version 1.0.0</p>
-                    <p>Build: 2025.05.01-1</p>
-                    <p class="text-sm text-gray-400">
-                      © 2025 Security Monitoring System
-                    </p>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="d-flex justify-content-md-end">
-                      <i class="fas fa-shield-alt fa-5x text-blue-400"></i>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="mb-4">
-                  <h5 class="mb-3">System Information</h5>
-                  <div class="row">
-                    <div class="col-md-4 mb-3">
-                      <div class="settings-card p-3">
-                        <h6 class="text-sm font-semibold mb-2">CPU Usage</h6>
-                        <div class="progress mb-2" style="height: 10px">
-                          <div
-                            class="progress-bar bg-blue-500"
-                            role="progressbar"
-                            style="width: 23%"
-                          ></div>
-                        </div>
-                        <p class="mb-0 text-sm">23%</p>
-                      </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                      <div class="settings-card p-3">
-                        <h6 class="text-sm font-semibold mb-2">Memory Usage</h6>
-                        <div class="progress mb-2" style="height: 10px">
-                          <div
-                            class="progress-bar bg-green-500"
-                            role="progressbar"
-                            style="width: 45%"
-                          ></div>
-                        </div>
-                        <p class="mb-0 text-sm">45%</p>
-                      </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                      <div class="settings-card p-3">
-                        <h6 class="text-sm font-semibold mb-2">Storage</h6>
-                        <div class="progress mb-2" style="height: 10px">
-                          <div
-                            class="progress-bar bg-yellow-500"
-                            role="progressbar"
-                            style="width: 67%"
-                          ></div>
-                        </div>
-                        <p class="mb-0 text-sm">67%</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <!-- ... -->
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Device Modal -->
+    <div
+      class="modal fade"
+      id="editModal"
+      tabindex="-1"
+      aria-labelledby="editModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editModalLabel">Edit Device</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="edit-device-id" />
+            <div class="mb-3">
+              <label class="form-label">Name</label>
+              <input type="text" id="edit-device-name" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">MAC</label>
+              <input type="text" id="edit-device-mac" class="form-control" />
+            </div>
+            <div class="form-check form-switch">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="edit-device-enable"
+              />
+              <label class="form-check-label" for="edit-device-enable"
+                >Enabled</label
+              >
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveEdit()">
+              Save Changes
+            </button>
           </div>
         </div>
       </div>
@@ -294,27 +295,122 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
+      // Uptime websocket
       function updateUptime() {
         const ws = new WebSocket("ws://" + window.location.host + "/uptime");
-
-        ws.onmessage = function (event) {
-          document.getElementById("uptime").textContent =
-            "Uptime: " + event.data;
-        };
-
-        ws.onclose = function () {
-          console.log("Disconnected from uptime WebSocket.");
-          updateUptime();
-        };
-
-        ws.onerror = function (err) {
-          console.error("WebSocket error:", err);
-        };
+        ws.onmessage = (e) =>
+          (document.getElementById("uptime").textContent = "Uptime: " + e.data);
+        ws.onclose = updateUptime;
       }
-
-      // Initial uptime set and interval
       updateUptime();
 
+      // Render one row in the existing devices table
+      function renderDeviceRow(device) {
+        const tbody = document.getElementById("device-list");
+        const tr = document.createElement("tr");
+        tr.dataset.id = device.id;
+
+        tr.innerHTML = `
+          <td>${device.name}</td>
+          <td>${device.mac}</td>
+          <td>
+            <div class="form-check form-switch">
+              <input class="form-check-input enable-switch" type="checkbox" ${
+                device.enable ? "checked" : ""
+              } />
+            </div>
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-light me-2 edit-btn">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger delete-btn">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        `;
+        // enable toggle
+        tr.querySelector(".enable-switch").addEventListener(
+          "change",
+          async (e) => {
+            const updated = {
+              id: device.id,
+              mac: device.mac,
+              name: device.name,
+              saved_position: device.saved_position,
+              status: device.status,
+              enable: e.target.checked,
+            };
+            await fetch("/api/devices/update-devices", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ devices: [updated] }),
+            });
+          },
+        );
+        // edit button
+        tr.querySelector(".edit-btn").addEventListener("click", () => {
+          document.getElementById("edit-device-id").value = device.id;
+          document.getElementById("edit-device-name").value = device.name;
+          document.getElementById("edit-device-mac").value = device.mac;
+          document.getElementById("edit-device-enable").checked = device.enable;
+          new bootstrap.Modal(document.getElementById("editModal")).show();
+        });
+        // delete button
+        tr.querySelector(".delete-btn").addEventListener("click", async () => {
+          if (!confirm("Delete this device?")) return;
+          await fetch("/api/devices/delete-devices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: [device.id] }),
+          });
+          tr.remove();
+        });
+
+        tbody.appendChild(tr);
+      }
+
+      // load devices on start
+      async function loadDevices() {
+        const res = await fetch("/api/devices");
+        const devices = await res.json();
+        document.getElementById("device-list").innerHTML = "";
+        devices.forEach(renderDeviceRow);
+      }
+      document.addEventListener("DOMContentLoaded", loadDevices);
+
+      // Save edit from modal
+      async function saveEdit() {
+        const id = +document.getElementById("edit-device-id").value;
+        const name = document.getElementById("edit-device-name").value;
+        const mac = document.getElementById("edit-device-mac").value;
+        const enable = document.getElementById("edit-device-enable").checked;
+
+        // find full device in current list
+        const res = await fetch("/api/devices");
+        const devices = await res.json();
+        const device = devices.find((d) => d.id === id);
+        const updated = {
+          id,
+          name,
+          mac,
+          saved_position: device.saved_position,
+          status: device.status,
+          enable,
+        };
+
+        await fetch("/api/devices/update-devices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ devices: [updated] }),
+        });
+        loadDevices();
+        bootstrap.Modal.getInstance(
+          document.getElementById("editModal"),
+        ).hide();
+      }
+
+      // Add new-device input row
       function addDeviceInput() {
         const container = document.createElement("div");
         container.className = "d-flex gap-2 mb-2 align-items-center";
@@ -335,55 +431,30 @@
         deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
         deleteBtn.onclick = () => container.remove();
 
-        container.appendChild(nameInput);
-        container.appendChild(macInput);
-        container.appendChild(deleteBtn);
-
-        document.getElementById("device-list").appendChild(container);
+        container.append(nameInput, macInput, deleteBtn);
+        document.getElementById("new-device-list").appendChild(container);
       }
 
+      // Send new devices to backend
       async function addDevices() {
-        const deviceList = document.getElementById("device-list");
+        const list = document.getElementById("new-device-list");
         const devices = [];
-
-        // Collect device data from input fields
-        deviceList.querySelectorAll("div.d-flex").forEach((container) => {
-          const name = container.querySelector(
+        list.querySelectorAll("div.d-flex").forEach((c) => {
+          const name = c.querySelector(
             'input[placeholder="Device Name"]',
           ).value;
-          const mac = container.querySelector(
-            'input[placeholder="MAC Address"]',
-          ).value;
-
-          if (name && mac) {
-            devices.push({ name, mac });
-          }
+          const mac = c.querySelector('input[placeholder="MAC Address"]').value;
+          if (name && mac) devices.push({ name, mac });
         });
-
-        try {
-          const response = await fetch("/api/devices/add-devices", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ devices }),
-          });
-
-          const result = await response.json();
-
-          if (response.ok) {
-            console.log(result.message); // "Devices added successfully"
-            // Optionally, you can call positionController.init() here if needed
-          } else {
-            console.error(result.message); // "Failed to add devices"
-          }
-        } catch (error) {
-          console.error("Error adding devices:", error);
-        }
+        if (!devices.length) return;
+        await fetch("/api/devices/add-devices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ devices }),
+        });
+        document.getElementById("new-device-list").innerHTML = "";
+        loadDevices();
       }
-
-      // Attach the addDevices function to the Save Settings button
-      document.querySelector(".btn-primary").onclick = addDevices;
     </script>
   </body>
 </html>

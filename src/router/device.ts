@@ -21,5 +21,15 @@ router.post(
   authMiddleware,
   deviceController.addDevices,
 );
+router.post(
+  "/devices/update-devices",
+  authMiddleware,
+  deviceController.updateDevices,
+);
+router.post(
+  "/devices/delete-devices",
+  authMiddleware,
+  deviceController.deleteDevices,
+);
 
 export default router;

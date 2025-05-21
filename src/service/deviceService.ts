@@ -9,6 +9,7 @@ export const createDevicesTable = async () => {
       name VARCHAR(255) NOT NULL,
       saved_position JSONB,
       status VARCHAR(50) DEFAULT 'offline',
+      enable BOOLEAN DEFAULT true,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -27,11 +28,12 @@ export const addDevice = async (
   name: string,
   saved_position?: object,
   status: string = "offline",
+  enable: boolean = true,
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "INSERT INTO devices (mac, name, saved_position, status) VALUES ($1, $2, $3, $4)",
-      [mac, name, saved_position, status],
+      "INSERT INTO devices (mac, name, saved_position, status, enable) VALUES ($1, $2, $3, $4, $5)",
+      [mac, name, saved_position, status, enable],
     );
     return true;
   } catch (error) {
@@ -47,11 +49,12 @@ export const updateDevice = async (
   name: string,
   saved_position?: object,
   status?: string,
+  enable?: boolean,
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5",
-      [mac, name, saved_position, status ?? "offline", id],
+      "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4, enable = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6",
+      [mac, name, saved_position, status ?? "offline", enable ?? true, id],
     );
     return true;
   } catch (error) {
@@ -100,6 +103,7 @@ export const updateDeviceByMac = async (
   name?: string,
   saved_position?: object,
   status?: string,
+  enable?: boolean,
 ): Promise<boolean> => {
   const fields: string[] = [];
   const values: any[] = [];
@@ -118,6 +122,11 @@ export const updateDeviceByMac = async (
   if (status !== undefined) {
     fields.push(`status = $${index++}`);
     values.push(status);
+  }
+
+  if (enable !== undefined) {
+    fields.push(`enable = $${index++}`);
+    values.push(enable);
   }
 
   if (fields.length === 0) return false;
@@ -173,28 +182,37 @@ export const getAllDevices = async () => {
   }
 };
 
+// Add multiple devices
 export const addDevices = async (
   devices: {
     mac: string;
     name: string;
     saved_position?: object;
     status?: string;
+    enable?: boolean;
   }[],
 ): Promise<boolean> => {
   if (devices.length === 0) return false;
 
-  // Build query placeholders dynamically
   const values: any[] = [];
   const placeholders: string[] = [];
 
-  devices.forEach(({ mac, name, saved_position, status }, i) => {
-    const idx = i * 4;
-    placeholders.push(`($${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`);
-    values.push(mac, name, saved_position ?? null, status ?? "offline");
+  devices.forEach(({ mac, name, saved_position, status, enable }, i) => {
+    const idx = i * 5;
+    placeholders.push(
+      `($${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5})`,
+    );
+    values.push(
+      mac,
+      name,
+      saved_position ?? null,
+      status ?? "offline",
+      enable ?? true,
+    );
   });
 
   const query = `
-    INSERT INTO devices (mac, name, saved_position, status)
+    INSERT INTO devices (mac, name, saved_position, status, enable)
     VALUES ${placeholders.join(", ")}
     ON CONFLICT (mac) DO NOTHING
   `;
@@ -204,6 +222,75 @@ export const addDevices = async (
     return true;
   } catch (error) {
     console.error("Error adding multiple devices:", error);
+    return false;
+  }
+};
+
+// Update multiple devices
+export const updateDevices = async (
+  devices: {
+    mac: string;
+    name?: string;
+    saved_position?: object;
+    status?: string;
+    enable?: boolean;
+  }[],
+): Promise<boolean> => {
+  if (devices.length === 0) return false;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const { mac, name, saved_position, status, enable } of devices) {
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      if (name !== undefined) {
+        fields.push(`name = $${idx++}`);
+        values.push(name);
+      }
+      if (saved_position !== undefined) {
+        fields.push(`saved_position = $${idx++}`);
+        values.push(saved_position);
+      }
+      if (status !== undefined) {
+        fields.push(`status = $${idx++}`);
+        values.push(status);
+      }
+      if (enable !== undefined) {
+        fields.push(`enable = $${idx++}`);
+        values.push(enable);
+      }
+
+      if (fields.length === 0) continue;
+
+      fields.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(mac);
+
+      const query = `UPDATE devices SET ${fields.join(
+        ", ",
+      )} WHERE mac = $${idx}`;
+      await client.query(query, values);
+    }
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error updating multiple devices:", error);
+    return false;
+  } finally {
+    client.release();
+  }
+};
+
+// Delete multiple devices by IDs
+export const deleteDevices = async (ids: number[]): Promise<boolean> => {
+  if (ids.length === 0) return false;
+  try {
+    await pool.query("DELETE FROM devices WHERE id = ANY($1)", [ids]);
+    return true;
+  } catch (error) {
+    console.error("Error deleting multiple devices:", error);
     return false;
   }
 };

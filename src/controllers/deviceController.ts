@@ -7,6 +7,8 @@ import {
   getAllDevices,
   updateDevicePosition,
   addDevices,
+  updateDevices,
+  deleteDevices,
 } from "../service/deviceService";
 import { positionController } from "../app";
 
@@ -80,6 +82,29 @@ export class DeviceController {
       return ctx.json({ message: "Devices added successfully" });
     } else {
       return ctx.json({ message: "Failed to add devices" }, 500);
+    }
+  }
+
+  async updateDevices(ctx: Context) {
+    const devices = await ctx.req.json();
+    console.log(devices);
+    const success = await updateDevices(devices.devices);
+    if (success) {
+      positionController.init();
+      return ctx.json({ message: "Devices updated successfully" });
+    } else {
+      return ctx.json({ message: "Failed to update devices" }, 500);
+    }
+  }
+
+  async deleteDevices(ctx: Context) {
+    const devices = await ctx.req.json();
+    const success = await deleteDevices(devices.ids);
+    if (success) {
+      positionController.init();
+      return ctx.json({ message: "Devices deleted successfully" });
+    } else {
+      return ctx.json({ message: "Failed to delete devices" }, 500);
     }
   }
 }
