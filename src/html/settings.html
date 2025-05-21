@@ -341,6 +341,49 @@
 
         document.getElementById("device-list").appendChild(container);
       }
+
+      async function addDevices() {
+        const deviceList = document.getElementById("device-list");
+        const devices = [];
+
+        // Collect device data from input fields
+        deviceList.querySelectorAll("div.d-flex").forEach((container) => {
+          const name = container.querySelector(
+            'input[placeholder="Device Name"]',
+          ).value;
+          const mac = container.querySelector(
+            'input[placeholder="MAC Address"]',
+          ).value;
+
+          if (name && mac) {
+            devices.push({ name, mac });
+          }
+        });
+
+        try {
+          const response = await fetch("/api/devices/add-devices", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ devices }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            console.log(result.message); // "Devices added successfully"
+            // Optionally, you can call positionController.init() here if needed
+          } else {
+            console.error(result.message); // "Failed to add devices"
+          }
+        } catch (error) {
+          console.error("Error adding devices:", error);
+        }
+      }
+
+      // Attach the addDevices function to the Save Settings button
+      document.querySelector(".btn-primary").onclick = addDevices;
     </script>
   </body>
 </html>

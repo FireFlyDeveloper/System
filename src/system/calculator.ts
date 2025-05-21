@@ -16,8 +16,8 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 0.1;
-  private readonly minAnchors = 4;
+  private readonly smoothingFactor = 0.3;
+  private readonly minAnchors = 3;
   private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
@@ -36,7 +36,7 @@ export class PositioningSystem {
   private readonly offlineCheckInterval = 5000; // 5 seconds
   private violationCounts: { [mac: string]: number } = {};
   private readonly maxViolationsBeforeAlert = 5;
-  private readonly violationResetInterval = 10000; // 30 seconds
+  private readonly violationResetInterval = 30000; // 30 seconds
   private deviceIdMap: { [mac: string]: number } = {}; // Map MAC addresses to device IDs
 
   constructor() {
@@ -79,6 +79,7 @@ export class PositioningSystem {
         if (
           Object.keys(this.beaconRSSI[normalizedMac]).length >= this.minAnchors
         ) {
+          console.log(normalizedMac, this.beaconRSSI[normalizedMac]);
           this.processPosition(normalizedMac);
         }
       } catch (err) {
@@ -156,9 +157,18 @@ export class PositioningSystem {
     const currentPos = this.smoothedPositions[mac];
     const savedPos = this.externalSavedPositions[mac];
 
+    console.log(
+      `Beacon ${mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(
+        2,
+      )})`,
+    );
+
     if (savedPos) {
       const distance = this.calculateDistance(currentPos, savedPos);
       if (distance > this.movementThreshold) {
+        console.log(
+          `⚠️ Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
+        );
         this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
 
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {

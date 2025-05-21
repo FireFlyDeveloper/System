@@ -6,6 +6,7 @@ import {
   getDeviceById,
   getAllDevices,
   updateDevicePosition,
+  addDevices,
 } from "../service/deviceService";
 import { positionController } from "../app";
 
@@ -73,7 +74,7 @@ export class DeviceController {
 
   async addDevices(ctx: Context) {
     const devices = await ctx.req.json();
-    const success = await this.addDevices(devices);
+    const success = await addDevices(devices.devices);
     if (success) {
       positionController.init();
       return ctx.json({ message: "Devices added successfully" });
