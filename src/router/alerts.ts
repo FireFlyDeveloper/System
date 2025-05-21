@@ -1,0 +1,18 @@
+import { Hono } from "hono";
+import { AlertController } from "../controllers/alertsController";
+import { authMiddleware } from "../middlewares/authMiddleware";
+
+const router = new Hono();
+
+const alertController = new AlertController();
+
+router.post("/alerts", authMiddleware, alertController.create);
+router.get(
+  "/alerts/device/:device_id",
+  authMiddleware,
+  alertController.getByDeviceId,
+);
+router.get("/alerts", authMiddleware, alertController.getAll);
+router.delete("/alerts/:id", authMiddleware, alertController.delete);
+
+export default router;

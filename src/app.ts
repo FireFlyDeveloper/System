@@ -6,6 +6,7 @@ import { serveHTML } from "./utils/serverHTML";
 import { sessionsMiddleware } from "./middlewares/sessionMiddleware";
 import authUser from "./router/auth";
 import device from "./router/device";
+import alerts from "./router/alerts";
 import { createBunWebSocket } from "hono/bun";
 import type { ServerWebSocket } from "bun";
 import { UptimeClock } from "./utils/clock";
@@ -91,6 +92,7 @@ app.get("/dashboard/admin", sessionsMiddleware, (c) =>
 
 app.route("/auth", authUser);
 app.route("/api", device);
+app.route("/api", alerts);
 
 app.get("/logout", sessionsMiddleware, (c) => {
   const session = c.get("session");

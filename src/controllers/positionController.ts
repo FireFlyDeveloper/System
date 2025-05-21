@@ -3,6 +3,7 @@ import { PositioningSystem } from "../system/calculator";
 import { createDevicesTable, getAllDevices } from "../service/deviceService";
 import { WSContext } from "hono/ws";
 import { createTable, createUser } from "../service/authService";
+import { createAlertsTable } from "../service/alertsService";
 
 export default class PositionController {
   private positioningSystem!: PositioningSystem;
@@ -18,6 +19,8 @@ export default class PositionController {
     await createTable();
     await createUser();
     await createDevicesTable();
+    await createAlertsTable();
+    console.log("Tables created successfully");
   }
 
   async init() {
