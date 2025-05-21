@@ -1,6 +1,7 @@
 import { WSContext } from "hono/ws";
 import mqtt from "mqtt";
 import { updateDeviceStatus } from "../service/deviceService";
+import { addAlert } from "../service/alertsService";
 
 interface AnchorRSSI {
   [anchorId: number]: number;
@@ -33,10 +34,25 @@ export class PositioningSystem {
   private lastSeenTimestamps: { [mac: string]: number } = {};
   private readonly offlineTimeout = 30000; // 30 seconds
   private readonly offlineCheckInterval = 5000; // 5 seconds
+  private violationCounts: { [mac: string]: number } = {};
+  private readonly maxViolationsBeforeAlert = 5;
+  private readonly violationResetInterval = 30000; // 30 seconds
+  private deviceIdMap: { [mac: string]: number } = {}; // Map MAC addresses to device IDs
 
   constructor() {
     this.setupMQTT();
     this.startOfflineChecker();
+    this.startViolationResetTimer();
+  }
+
+  public setDeviceIdMap(devices: { id: number; mac: string }[]) {
+    this.deviceIdMap = devices.reduce(
+      (acc, device) => {
+        acc[device.mac.toLowerCase()] = device.id;
+        return acc;
+      },
+      {} as { [mac: string]: number },
+    );
   }
 
   private setupMQTT() {
@@ -58,7 +74,6 @@ export class PositioningSystem {
           this.beaconRSSI[normalizedMac] = {};
         this.beaconRSSI[normalizedMac][esp] = rssi;
 
-        // Update last seen timestamp
         this.lastSeenTimestamps[normalizedMac] = Date.now();
 
         if (
@@ -72,25 +87,52 @@ export class PositioningSystem {
     });
   }
 
+  private startViolationResetTimer() {
+    setInterval(() => {
+      for (const mac in this.violationCounts) {
+        if (this.violationCounts[mac] > 0) {
+          this.violationCounts[mac] = 0;
+          console.log(`Reset violation count for ${mac}`);
+        }
+      }
+    }, this.violationResetInterval);
+  }
+
+  private async triggerAlert(mac: string, message: string) {
+    const deviceId = this.deviceIdMap[mac];
+    if (deviceId) {
+      await addAlert(deviceId, message);
+    }
+
+    if (this.ws) {
+      this.ws.send(
+        JSON.stringify({
+          type: "alert",
+          mac,
+          message,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+    console.warn(`⚠️ ALERT: ${message}`);
+  }
+
   private startOfflineChecker() {
     setInterval(() => {
       const now = Date.now();
       Array.from(this.targetMacs).forEach((mac) => {
         const lastSeen = this.lastSeenTimestamps[mac];
         if (!lastSeen || now - lastSeen > this.offlineTimeout) {
-          if (this.ws) {
-            this.ws.send(
-              JSON.stringify({
-                type: "offline_alert",
-                mac,
-                message: `Device ${mac} is offline!`,
-              }),
+          this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
+
+          if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
+            this.triggerAlert(
+              mac,
+              `Device ${mac} is offline for extended period`,
             );
+            updateDeviceStatus(mac, "offline");
+            this.violationCounts[mac] = 0;
           }
-          console.warn(`⚠️ Device ${mac} is offline!`);
-          updateDeviceStatus(mac, "offline");
-          // Reset timestamp to avoid repeated alerts
-          this.lastSeenTimestamps[mac] = now;
         }
       });
     }, this.offlineCheckInterval);
@@ -112,41 +154,24 @@ export class PositioningSystem {
     }
 
     const currentPos = this.smoothedPositions[mac];
-    console.log(
-      `Beacon ${mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(2)})`,
-    );
-
     const savedPos = this.externalSavedPositions[mac];
+
     if (savedPos) {
       const distance = this.calculateDistance(currentPos, savedPos);
       if (distance > this.movementThreshold) {
-        updateDeviceStatus(mac, "Out of position");
-        if (this.ws) {
-          this.ws.send(
-            JSON.stringify({
-              type: "alert",
-              mac,
-              distance: distance.toFixed(2),
-              message: `Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
-            }),
+        this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
+
+        if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
+          this.triggerAlert(
+            mac,
+            `Device ${mac} moved ${distance.toFixed(2)}m from saved position`,
           );
+          updateDeviceStatus(mac, "out_of_position");
+          this.violationCounts[mac] = 0;
         }
-        console.log(
-          `⚠️ Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
-        );
       } else {
-        console.log(`Device ${mac} is within movement threshold.`);
+        this.violationCounts[mac] = 0;
         updateDeviceStatus(mac, "online");
-        if (this.ws) {
-          this.ws.send(
-            JSON.stringify({
-              type: "update",
-              mac,
-              distance: distance.toFixed(2),
-              message: `Device ${mac} is within movement threshold.`,
-            }),
-          );
-        }
       }
     }
   }
@@ -178,7 +203,6 @@ export class PositioningSystem {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  // === Public API ===
   public setWebSocketContext(ws: WSContext) {
     this.ws = ws;
   }
