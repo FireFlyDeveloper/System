@@ -103,6 +103,10 @@
           transform: rotate(360deg);
         }
       }
+      .filter-btn.active {
+        background-color: #3b82f6 !important;
+        color: white !important;
+      }
     </style>
   </head>
   <body class="min-h-screen">
@@ -187,13 +191,28 @@
         class="d-flex flex-wrap justify-content-between align-items-center mb-4"
       >
         <div class="mb-3 mb-md-0">
-          <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-dark active">
+          <div class="btn-group" role="group" id="filter-buttons">
+            <button
+              type="button"
+              class="filter-btn btn btn-sm btn-dark active"
+              data-filter="all"
+            >
               All
             </button>
-            <button type="button" class="btn btn-sm btn-dark">Critical</button>
-            <button type="button" class="btn btn-sm btn-dark">Warning</button>
-            <button type="button" class="btn btn-sm btn-dark">Info</button>
+            <button
+              type="button"
+              class="filter-btn btn btn-sm btn-dark"
+              data-filter="critical"
+            >
+              Critical
+            </button>
+            <button
+              type="button"
+              class="filter-btn btn btn-sm btn-dark"
+              data-filter="warning"
+            >
+              Warning
+            </button>
           </div>
         </div>
         <div>
@@ -202,8 +221,13 @@
               type="text"
               class="form-control form-control-sm bg-gray-700 border-gray-600 text-white"
               placeholder="Search alerts..."
+              id="search-input"
             />
-            <button class="btn btn-sm btn-outline-secondary" type="button">
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              type="button"
+              id="search-btn"
+            >
               <i class="fas fa-search"></i>
             </button>
           </div>
@@ -239,6 +263,8 @@
       let uptimeWebSocket = null;
       let refreshInterval = null;
       let isManualRefresh = false;
+      let currentFilter = "all";
+      let currentSearchTerm = "";
 
       // Update uptime via WebSocket
       function updateUptime() {
@@ -363,6 +389,39 @@
         await fetchAlerts(); // Wait for fetch to complete
       }
 
+      // Filter alerts based on current filter
+      function filterAlerts(alerts) {
+        if (currentFilter === "all") {
+          return alerts;
+        }
+        return alerts.filter((alert) => alert.type === currentFilter);
+      }
+
+      // Search alerts based on search term
+      function searchAlerts(alerts) {
+        if (!currentSearchTerm) {
+          return alerts;
+        }
+        const term = currentSearchTerm.toLowerCase();
+        return alerts.filter(
+          (alert) =>
+            alert.message.toLowerCase().includes(term) ||
+            alert.device_id.toString().includes(term),
+        );
+      }
+
+      // Update filter buttons active state
+      function updateFilterButtons() {
+        const buttons = document.querySelectorAll(".filter-btn");
+        buttons.forEach((button) => {
+          if (button.dataset.filter === currentFilter) {
+            button.classList.add("active");
+          } else {
+            button.classList.remove("active");
+          }
+        });
+      }
+
       // Fetch alerts from API with pagination
       async function fetchAlerts() {
         try {
@@ -383,7 +442,6 @@
 
           let criticalCount = 0;
           let warningCount = 0;
-          let infoCount = 0;
 
           // Update pagination info
           totalAlerts = data.total || 0;
@@ -394,39 +452,49 @@
             alertsList.innerHTML =
               '<div class="text-center py-4 text-gray-500">No alerts found</div>';
           } else {
-            // Display alerts
-            data.alerts.forEach((alert) => {
-              const alertType = alert.message.toLowerCase().includes("warning")
-                ? "warning"
-                : alert.message.toLowerCase().includes("critical")
-                  ? "critical"
-                  : "info";
+            // Filter alerts based on current filter and search
+            let filteredAlerts = filterAlerts(data.alerts);
+            filteredAlerts = searchAlerts(filteredAlerts);
 
-              const alertCard = document.createElement("div");
-              alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
-              alertCard.innerHTML = `
-                <div class="d-flex align-items-center mb-2">
-                  <span class="badge badge-${alertType} me-2">${alertType.charAt(0).toUpperCase() + alertType.slice(1)}</span>
-                  <h5 class="mb-0">${alert.message}</h5>
-                  <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
-                </div>
-                <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
-                <div class="d-flex justify-content-between align-items-center">
-                  <div class="d-flex align-items-center">
-                    <i class="fas fa-laptop fa-lg ${alertType === "critical" ? "status-offline" : "status-present"} me-2"></i>
-                    <div>
-                      <span class="font-medium">Device-${alert.device_id}</span>
+            if (filteredAlerts.length === 0) {
+              alertsList.innerHTML =
+                '<div class="text-center py-4 text-gray-500">No alerts match your filter criteria</div>';
+            } else {
+              // Display alerts
+              filteredAlerts.forEach((alert) => {
+                const alertType =
+                  alert.type ||
+                  (alert.message.toLowerCase().includes("warning")
+                    ? "warning"
+                    : alert.message.toLowerCase().includes("critical")
+                      ? "critical"
+                      : "info");
+
+                const alertCard = document.createElement("div");
+                alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
+                alertCard.innerHTML = `
+                  <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-${alertType} me-2">${alertType.charAt(0).toUpperCase() + alertType.slice(1)}</span>
+                    <h5 class="mb-0">${alert.message}</h5>
+                    <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
+                  </div>
+                  <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                      <i class="fas fa-laptop fa-lg ${alertType === "critical" ? "status-offline" : "status-present"} me-2"></i>
+                      <div>
+                        <span class="font-medium">Device-${alert.device_id}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              `;
-              alertsList.appendChild(alertCard);
+                `;
+                alertsList.appendChild(alertCard);
 
-              // Update counts based on actual alert type
-              if (alertType === "critical") criticalCount++;
-              else if (alertType === "warning") warningCount++;
-              else infoCount++;
-            });
+                // Update counts based on actual alert type
+                if (alertType === "critical") criticalCount++;
+                else if (alertType === "warning") warningCount++;
+              });
+            }
           }
 
           // Update counts
@@ -471,6 +539,31 @@
         updateUptime();
         fetchAlerts();
         setupAutoRefresh();
+
+        // Setup filter button event listeners
+        document.querySelectorAll(".filter-btn").forEach((button) => {
+          button.addEventListener("click", () => {
+            currentFilter = button.dataset.filter;
+            updateFilterButtons();
+            fetchAlerts();
+          });
+        });
+
+        // Setup search functionality
+        document.getElementById("search-btn").addEventListener("click", () => {
+          currentSearchTerm = document.getElementById("search-input").value;
+          fetchAlerts();
+        });
+
+        // Also trigger search on Enter key
+        document
+          .getElementById("search-input")
+          .addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+              currentSearchTerm = document.getElementById("search-input").value;
+              fetchAlerts();
+            }
+          });
 
         // Clean up on page unload
         window.addEventListener("beforeunload", () => {

@@ -7,6 +7,7 @@ export const createAlertsTable = async () => {
       id SERIAL PRIMARY KEY,
       device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
       message TEXT NOT NULL,
+      type TEXT NOT NULL,  -- New column for alert type
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
@@ -22,11 +23,12 @@ export const createAlertsTable = async () => {
 export const addAlert = async (
   device_id: number,
   message: string,
+  type: string, // New parameter for alert type
 ): Promise<boolean> => {
   try {
     await pool.query(
-      "INSERT INTO alerts (device_id, message) VALUES ($1, $2)",
-      [device_id, message],
+      "INSERT INTO alerts (device_id, message, type) VALUES ($1, $2, $3)", // Updated query
+      [device_id, message, type],
     );
     return true;
   } catch (error) {
@@ -49,7 +51,6 @@ export const getAlertsByDeviceId = async (device_id: number) => {
   }
 };
 
-// Get all alerts
 // Get all alerts with pagination (20 items per page) and total count
 export const getAllAlerts = async (page: number = 1) => {
   const itemsPerPage = 20;

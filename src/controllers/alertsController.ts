@@ -8,8 +8,8 @@ import {
 
 export class AlertController {
   async create(ctx: Context) {
-    const { device_id, message } = await ctx.req.json();
-    const success = await addAlert(device_id, message);
+    const { device_id, message, type } = await ctx.req.json();
+    const success = await addAlert(device_id, message, type);
     if (success) {
       return ctx.json({ message: "Alert created successfully" });
     } else {

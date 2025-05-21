@@ -100,16 +100,16 @@ export class PositioningSystem {
     }, this.violationResetInterval);
   }
 
-  private async triggerAlert(mac: string, message: string) {
+  private async triggerAlert(mac: string, message: string, type: string) {
     const deviceId = this.deviceIdMap[mac];
     if (deviceId) {
-      await addAlert(deviceId, message);
+      await addAlert(deviceId, message, type);
     }
 
     if (this.ws) {
       this.ws.send(
         JSON.stringify({
-          type: "alert",
+          type,
           mac,
           message,
           timestamp: new Date().toISOString(),
@@ -128,6 +128,7 @@ export class PositioningSystem {
           this.triggerAlert(
             mac,
             `Device ${mac} is offline for extended period`,
+            "critical",
           );
           updateDeviceStatus(mac, "offline");
           this.violationCounts[mac] = 0;
@@ -172,6 +173,7 @@ export class PositioningSystem {
           this.triggerAlert(
             mac,
             `Device ${mac} moved ${distance.toFixed(2)}m from saved position`,
+            "warning",
           );
           updateDeviceStatus(mac, "out_of_position");
           this.violationCounts[mac] = 0;
