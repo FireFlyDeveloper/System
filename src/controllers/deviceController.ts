@@ -70,4 +70,15 @@ export class DeviceController {
       return ctx.json({ message: "Failed to update device position" }, 500);
     }
   }
+
+  async addDevices(ctx: Context) {
+    const devices = await ctx.req.json();
+    const success = await this.addDevices(devices);
+    if (success) {
+      positionController.init();
+      return ctx.json({ message: "Devices added successfully" });
+    } else {
+      return ctx.json({ message: "Failed to add devices" }, 500);
+    }
+  }
 }

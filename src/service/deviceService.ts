@@ -172,3 +172,38 @@ export const getAllDevices = async () => {
     return [];
   }
 };
+
+export const addDevices = async (
+  devices: {
+    mac: string;
+    name: string;
+    saved_position?: object;
+    status?: string;
+  }[],
+): Promise<boolean> => {
+  if (devices.length === 0) return false;
+
+  // Build query placeholders dynamically
+  const values: any[] = [];
+  const placeholders: string[] = [];
+
+  devices.forEach(({ mac, name, saved_position, status }, i) => {
+    const idx = i * 4;
+    placeholders.push(`($${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`);
+    values.push(mac, name, saved_position ?? null, status ?? "offline");
+  });
+
+  const query = `
+    INSERT INTO devices (mac, name, saved_position, status)
+    VALUES ${placeholders.join(", ")}
+    ON CONFLICT (mac) DO NOTHING
+  `;
+
+  try {
+    await pool.query(query, values);
+    return true;
+  } catch (error) {
+    console.error("Error adding multiple devices:", error);
+    return false;
+  }
+};

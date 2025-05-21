@@ -16,5 +16,10 @@ router.get(
   authMiddleware,
   deviceController.updatePosition,
 );
+router.post(
+  "/devices/add-devices",
+  authMiddleware,
+  deviceController.addDevices,
+);
 
 export default router;
