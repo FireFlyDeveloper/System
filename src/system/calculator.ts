@@ -37,7 +37,8 @@ export class PositioningSystem {
   private violationCounts: { [mac: string]: number } = {};
   private readonly maxViolationsBeforeAlert = 5;
   private readonly violationResetInterval = 30000; // 30 seconds
-  private deviceIdMap: { [mac: string]: number } = {}; // Map MAC addresses to device IDs
+  private deviceIdMap: { [mac: string]: number } = {};
+  private deviceNameMap: { [mac: string]: string } = {};
 
   constructor() {
     this.setupMQTT();
@@ -45,14 +46,16 @@ export class PositioningSystem {
     this.startViolationResetTimer();
   }
 
-  public setDeviceIdMap(devices: { id: number; mac: string }[]) {
-    this.deviceIdMap = devices.reduce(
-      (acc, device) => {
-        acc[device.mac.toLowerCase()] = device.id;
-        return acc;
-      },
-      {} as { [mac: string]: number },
-    );
+  public setDeviceIdMap(devices: { id: number; mac: string; name?: string }[]) {
+    this.deviceIdMap = {};
+    this.deviceNameMap = {};
+    devices.forEach((device) => {
+      const mac = device.mac.toLowerCase();
+      this.deviceIdMap[mac] = device.id;
+      if (device.name) {
+        this.deviceNameMap[mac] = device.name;
+      }
+    });
   }
 
   private setupMQTT() {
@@ -102,8 +105,11 @@ export class PositioningSystem {
 
   private async triggerAlert(mac: string, message: string, type: string) {
     const deviceId = this.deviceIdMap[mac];
+    const name = this.deviceNameMap[mac] || mac;
+    const alertMessage = `Device ${name}: ${message}`;
+
     if (deviceId) {
-      await addAlert(deviceId, message, type);
+      await addAlert(deviceId, alertMessage, type);
     }
 
     if (this.ws) {
@@ -111,12 +117,12 @@ export class PositioningSystem {
         JSON.stringify({
           type,
           mac,
-          message,
+          message: alertMessage,
           timestamp: new Date().toISOString(),
         }),
       );
     }
-    console.warn(`⚠️ ALERT: ${message}`);
+    console.warn(`⚠️ ALERT: ${alertMessage}`);
   }
 
   private startOfflineChecker() {
@@ -127,7 +133,7 @@ export class PositioningSystem {
         if (!lastSeen || now - lastSeen > this.offlineTimeout) {
           this.triggerAlert(
             mac,
-            `Device ${mac} is offline for extended period`,
+            `${this.deviceNameMap[mac] || mac} is offline for extended period`,
             "critical",
           );
           updateDeviceStatus(mac, "offline");
@@ -156,23 +162,21 @@ export class PositioningSystem {
     const savedPos = this.externalSavedPositions[mac];
 
     console.log(
-      `Beacon ${mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(
-        2,
-      )})`,
+      `Beacon ${this.deviceNameMap[mac] || mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(2)})`,
     );
 
     if (savedPos) {
       const distance = this.calculateDistance(currentPos, savedPos);
       if (distance > this.movementThreshold) {
         console.log(
-          `⚠️ Device ${mac} moved ${distance.toFixed(2)}m from saved position!`,
+          `⚠️ Device ${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(2)}m from saved position!`,
         );
         this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
 
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
           this.triggerAlert(
             mac,
-            `Device ${mac} moved ${distance.toFixed(2)}m from saved position`,
+            `${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(2)}m from saved position`,
             "warning",
           );
           updateDeviceStatus(mac, "out_of_position");
