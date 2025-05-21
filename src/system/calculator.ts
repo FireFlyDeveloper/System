@@ -17,7 +17,7 @@ export class PositioningSystem {
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.3;
-  private readonly minAnchors = 3;
+  private readonly minAnchors = 4;
   private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
@@ -69,6 +69,7 @@ export class PositioningSystem {
         const normalizedMac = mac.toLowerCase();
 
         if (!this.targetMacs.has(normalizedMac)) return;
+        console.log(`Received RSSI for ${normalizedMac}: ${rssi} from ${esp}`);
 
         if (!this.beaconRSSI[normalizedMac])
           this.beaconRSSI[normalizedMac] = {};
@@ -124,16 +125,12 @@ export class PositioningSystem {
       Array.from(this.targetMacs).forEach((mac) => {
         const lastSeen = this.lastSeenTimestamps[mac];
         if (!lastSeen || now - lastSeen > this.offlineTimeout) {
-          this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
-
-          if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
-            this.triggerAlert(
-              mac,
-              `Device ${mac} is offline for extended period`,
-            );
-            updateDeviceStatus(mac, "offline");
-            this.violationCounts[mac] = 0;
-          }
+          this.triggerAlert(
+            mac,
+            `Device ${mac} is offline for extended period`,
+          );
+          updateDeviceStatus(mac, "offline");
+          this.violationCounts[mac] = 0;
         }
       });
     }, this.offlineCheckInterval);
