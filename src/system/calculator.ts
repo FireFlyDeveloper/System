@@ -32,7 +32,7 @@ export class PositioningSystem {
   private smoothedPositions: { [mac: string]: Position } = {};
   private externalSavedPositions: { [mac: string]: Position } = {};
   private lastSeenTimestamps: { [mac: string]: number } = {};
-  private readonly offlineTimeout = 30000; // 30 seconds
+  private readonly offlineTimeout = 60000; // 30 seconds
   private readonly offlineCheckInterval = 5000; // 5 seconds
   private violationCounts: { [mac: string]: number } = {};
   private readonly maxViolationsBeforeAlert = 5;
