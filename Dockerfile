@@ -1,0 +1,15 @@
+FROM oven/bun:latest
+
+WORKDIR /app
+
+COPY package.json package-lock.json* /app/
+
+RUN npm install
+
+COPY . /app
+
+RUN bun run build
+
+EXPOSE 3000
+
+CMD ["bun", "run", "start"]
