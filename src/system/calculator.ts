@@ -39,6 +39,8 @@ export class PositioningSystem {
   private readonly violationResetInterval = 30000; // 30 seconds
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
+  private alarmTimeout: NodeJS.Timeout | null = null;
+  private readonly alarmCooldown = 10000;
 
   constructor() {
     this.setupMQTT();
@@ -113,6 +115,7 @@ export class PositioningSystem {
     const alertMessage = `Device ${name}: ${message}`;
 
     if (deviceId) {
+      this.alarm();
       await addAlert(deviceId, alertMessage, type);
     }
 
@@ -245,5 +248,16 @@ export class PositioningSystem {
   public getPosition(mac: string): Position | null {
     const normMac = mac.toLowerCase();
     return this.smoothedPositions[normMac] || null;
+  }
+
+  private alarm() {
+    if (!this.alarmTimeout) {
+      fetch("http://security.local:3030/blinkLED").catch((err) =>
+        console.error("Alarm fetch error:", err),
+      );
+      this.alarmTimeout = setTimeout(() => {
+        this.alarmTimeout = null;
+      }, this.alarmCooldown);
+    }
   }
 }
