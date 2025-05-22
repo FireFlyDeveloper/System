@@ -18,13 +18,13 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.6;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1;
+  private readonly movementThreshold = 1.1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
     2: { x: 10, y: 0 },
-    3: { x: 0, y: 11 },
-    4: { x: 10, y: 11 },
+    3: { x: 0, y: 13 },
+    4: { x: 10, y: 13 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 60000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 3; // Now 5 consecutive violations
+  private readonly maxViolationsBeforeAlert = 5; // Now 5 consecutive violations
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;

@@ -420,7 +420,7 @@
                   <i class="fas fa-laptop fa-2x ${statusClass} me-3"></i>
                   <div>
                     <h4 class="mb-0 font-semibold">${device.name}</h4>
-                    <p class="text-sm text-gray-400">${device.saved_position || "No position set"}</p>
+                    <p class="text-sm text-gray-400">Position: ${device.saved_position ? `${Number(device.saved_position.x).toFixed(2)}, ${Number(device.saved_position.y).toFixed(2)}` : "No save position"}</p>
                   </div>
                 </div>
                 <span class="badge ${statusBadge}">${statusText}</span>
