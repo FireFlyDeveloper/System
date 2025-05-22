@@ -46,14 +46,18 @@ export class PositioningSystem {
     this.startViolationResetTimer();
   }
 
-  public setDeviceIdMap(devices: { id: number; mac: string; name?: string }[]) {
+  public setDeviceIdMap(
+    devices: { id: number; mac: string; name?: string; enable: boolean }[],
+  ) {
     this.deviceIdMap = {};
     this.deviceNameMap = {};
     devices.forEach((device) => {
-      const mac = device.mac.toLowerCase();
-      this.deviceIdMap[mac] = device.id;
-      if (device.name) {
-        this.deviceNameMap[mac] = device.name;
+      if (device.enable) {
+        const mac = device.mac.toLowerCase();
+        this.deviceIdMap[mac] = device.id;
+        if (device.name) {
+          this.deviceNameMap[mac] = device.name;
+        }
       }
     });
   }
