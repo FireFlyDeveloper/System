@@ -1,6 +1,10 @@
 import { Context } from "hono";
 import { PositioningSystem } from "../system/calculator";
-import { createDevicesTable, getAllDevices } from "../service/deviceService";
+import {
+  createDevicesTable,
+  getAllDevices,
+  updatePositionByMac,
+} from "../service/deviceService";
 import { WSContext } from "hono/ws";
 import { createTable, createUser } from "../service/authService";
 import { createAlertsTable } from "../service/alertsService";
@@ -93,7 +97,12 @@ export default class PositionController {
     const mac = ctx.req.param("mac");
     const position = this.positioningSystem.getPosition(mac);
     if (position) {
-      return ctx.json(position);
+      const success = await updatePositionByMac(mac, position);
+      if (success) {
+        await this.init();
+        return ctx.json({ message: "Position updated successfully" });
+      }
+      return ctx.json("Position updated but failed to save to database");
     } else {
       ctx.status(404);
       return ctx.json({ message: "Position not found" });
