@@ -222,7 +222,6 @@
                 </button>
               </div>
 
-              <!-- About pane unchanged -->
               <div class="tab-pane fade" id="about">
                 <!-- ... -->
               </div>
@@ -321,6 +320,11 @@
             </div>
           </td>
           <td>
+            <button class="btn btn-sm btn-outline-success calibrate-btn" ${
+              device.enable ? "" : "disabled"
+            }>
+              <i class="fas fa-bullseye me-1"></i>Calibrate
+            </button>
             <button class="btn btn-sm btn-outline-light me-2 edit-btn">
               <i class="fas fa-edit"></i>
             </button>
@@ -329,6 +333,24 @@
             </button>
           </td>
         `;
+
+        // calibrate button
+        tr.querySelector(".calibrate-btn").addEventListener(
+          "click",
+          async () => {
+            const res = await fetch(
+              `/api/position/update/${encodeURIComponent(device.mac)}`,
+            );
+            const data = await res.json();
+            if (res.ok) {
+              await loadDevices();
+              alert(data.message);
+            } else {
+              alert(data.message || "Calibration failed");
+            }
+          },
+        );
+
         // enable toggle
         tr.querySelector(".enable-switch").addEventListener(
           "change",
@@ -346,8 +368,10 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ devices: [updated] }),
             });
+            loadDevices();
           },
         );
+
         // edit button
         tr.querySelector(".edit-btn").addEventListener("click", () => {
           document.getElementById("edit-device-id").value = device.id;
@@ -356,6 +380,7 @@
           document.getElementById("edit-device-enable").checked = device.enable;
           new bootstrap.Modal(document.getElementById("editModal")).show();
         });
+
         // delete button
         tr.querySelector(".delete-btn").addEventListener("click", async () => {
           if (!confirm("Delete this device?")) return;
@@ -386,7 +411,6 @@
         const mac = document.getElementById("edit-device-mac").value;
         const enable = document.getElementById("edit-device-enable").checked;
 
-        // find full device in current list
         const res = await fetch("/api/devices");
         const devices = await res.json();
         const device = devices.find((d) => d.id === id);
