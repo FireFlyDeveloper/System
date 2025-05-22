@@ -16,15 +16,15 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 0.3;
+  private readonly smoothingFactor = 0.6;
   private readonly minAnchors = 4;
   private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
     2: { x: 10, y: 0 },
-    3: { x: 0, y: 12 },
-    4: { x: 10, y: 12 },
+    3: { x: 0, y: 11 },
+    4: { x: 10, y: 11 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -35,8 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 60000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 5;
-  private readonly violationResetInterval = 30000; // 30 seconds
+  private readonly maxViolationsBeforeAlert = 3; // Now 5 consecutive violations
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -45,7 +44,7 @@ export class PositioningSystem {
   constructor() {
     this.setupMQTT();
     this.startOfflineChecker();
-    this.startViolationResetTimer();
+    // Removed violation reset timer
   }
 
   public setDeviceIdMap(
@@ -96,17 +95,6 @@ export class PositioningSystem {
         console.error("MQTT message error:", err);
       }
     });
-  }
-
-  private startViolationResetTimer() {
-    setInterval(() => {
-      for (const mac in this.violationCounts) {
-        if (this.violationCounts[mac] > 0) {
-          this.violationCounts[mac] = 0;
-          console.log(`Reset violation count for ${mac}`);
-        }
-      }
-    }, this.violationResetInterval);
   }
 
   private async triggerAlert(mac: string, message: string, type: string) {
@@ -180,6 +168,7 @@ export class PositioningSystem {
         );
         this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
 
+        // Check for 5 consecutive violations
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
           this.triggerAlert(
             mac,
@@ -187,9 +176,10 @@ export class PositioningSystem {
             "warning",
           );
           updateDeviceStatus(mac, "out_of_position");
-          this.violationCounts[mac] = 0;
+          this.violationCounts[mac] = 0; // Reset after alert
         }
       } else {
+        // Reset count if within threshold
         this.violationCounts[mac] = 0;
         updateDeviceStatus(mac, "online");
       }
@@ -223,6 +213,7 @@ export class PositioningSystem {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  // Remaining methods unchanged (setWebSocketContext, setTargetMacs, etc.)
   public setWebSocketContext(ws: WSContext) {
     this.ws = ws;
   }

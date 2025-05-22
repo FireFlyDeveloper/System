@@ -17,7 +17,7 @@ export class DeviceController {
     const { mac, name, saved_position } = await ctx.req.json();
     const success = await addDevice(mac, name, saved_position);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Device created successfully" });
     } else {
       return ctx.json({ message: "Failed to create device" }, 500);
@@ -29,7 +29,7 @@ export class DeviceController {
     const { mac, name, saved_position, status } = await ctx.req.json();
     const success = await updateDevice(id, mac, name, saved_position, status);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Device updated successfully" });
     } else {
       return ctx.json({ message: "Failed to update device" }, 500);
@@ -40,7 +40,7 @@ export class DeviceController {
     const id = Number(ctx.req.param("id"));
     const success = await deleteDevice(id);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Device deleted successfully" });
     } else {
       return ctx.json({ message: "Failed to delete device" }, 500);
@@ -67,7 +67,7 @@ export class DeviceController {
     const { saved_position } = await ctx.req.json();
     const success = await updateDevicePosition(id, saved_position);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Device position updated successfully" });
     } else {
       return ctx.json({ message: "Failed to update device position" }, 500);
@@ -78,7 +78,7 @@ export class DeviceController {
     const devices = await ctx.req.json();
     const success = await addDevices(devices.devices);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Devices added successfully" });
     } else {
       return ctx.json({ message: "Failed to add devices" }, 500);
@@ -90,7 +90,7 @@ export class DeviceController {
     console.log(devices);
     const success = await updateDevices(devices.devices);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Devices updated successfully" });
     } else {
       return ctx.json({ message: "Failed to update devices" }, 500);
@@ -101,7 +101,7 @@ export class DeviceController {
     const devices = await ctx.req.json();
     const success = await deleteDevices(devices.ids);
     if (success) {
-      positionController.init();
+      await positionController.init();
       return ctx.json({ message: "Devices deleted successfully" });
     } else {
       return ctx.json({ message: "Failed to delete devices" }, 500);
