@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 15;
+  private readonly maxViolationsBeforeAlert = 20;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
