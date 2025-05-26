@@ -16,9 +16,9 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 0.6;
+  private readonly smoothingFactor = 1;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1.6;
+  private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 15;
+  private readonly maxViolationsBeforeAlert = 25;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -127,7 +127,7 @@ export class PositioningSystem {
   private startOfflineChecker() {
     setInterval(() => {
       const now = Date.now();
-      Array.from(this.targetMacs).forEach((mac) => {
+      Array.from(this.targetMacs).forEach(async (mac) => {
         const lastSeen = this.lastSeenTimestamps[mac];
         if (!lastSeen || now - lastSeen > this.offlineTimeout) {
           this.triggerAlert(
@@ -135,14 +135,24 @@ export class PositioningSystem {
             `${this.deviceNameMap[mac] || mac} is offline for extended period`,
             "critical",
           );
-          updateDeviceStatus(mac, "offline");
+          await updateDeviceStatus(mac, "offline");
           this.violationCounts[mac] = 0;
+          if (this.ws) {
+            this.ws.send(
+              JSON.stringify({
+                type: "offline_alert",
+                mac: this.deviceNameMap[mac] || mac,
+                message: `${this.deviceNameMap[mac] || mac} is offline`,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
         }
       });
     }, this.offlineCheckInterval);
   }
 
-  private processPosition(mac: string) {
+  private async processPosition(mac: string) {
     const newPos = this.estimatePosition(this.beaconRSSI[mac]);
     if (!newPos) return;
 
@@ -178,12 +188,35 @@ export class PositioningSystem {
             `${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(2)}m from saved position`,
             "warning",
           );
-          updateDeviceStatus(mac, "out_of_position");
+          await updateDeviceStatus(mac, "out_of_position");
+          console.log();
           this.violationCounts[mac] = 0;
+          if (this.ws) {
+            this.ws.send(
+              JSON.stringify({
+                type: "alert",
+                mac: this.deviceNameMap[mac] || mac,
+                message: `${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(
+                  2,
+                )}m from saved position`,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
         }
       } else {
         this.violationCounts[mac] = 0;
-        updateDeviceStatus(mac, "online");
+        await updateDeviceStatus(mac, "online");
+        if (this.ws) {
+          this.ws.send(
+            JSON.stringify({
+              type: "update",
+              mac: this.deviceNameMap[mac] || mac,
+              position: currentPos,
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        }
       }
     }
   }
