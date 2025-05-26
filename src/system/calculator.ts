@@ -18,7 +18,7 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.6;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1.1;
+  private readonly movementThreshold = 1.6;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
@@ -32,10 +32,10 @@ export class PositioningSystem {
   private smoothedPositions: { [mac: string]: Position } = {};
   private externalSavedPositions: { [mac: string]: Position } = {};
   private lastSeenTimestamps: { [mac: string]: number } = {};
-  private readonly offlineTimeout = 60000; // 60 seconds
+  private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 5; // Now 5 consecutive violations
+  private readonly maxViolationsBeforeAlert = 15;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -44,7 +44,6 @@ export class PositioningSystem {
   constructor() {
     this.setupMQTT();
     this.startOfflineChecker();
-    // Removed violation reset timer
   }
 
   public setDeviceIdMap(
@@ -61,6 +60,7 @@ export class PositioningSystem {
         }
       }
     });
+    console.log("Device ID map updated:", this.deviceIdMap);
   }
 
   private setupMQTT() {
@@ -76,7 +76,11 @@ export class PositioningSystem {
         const { mac, rssi, esp } = JSON.parse(message.toString());
         const normalizedMac = mac.toLowerCase();
 
-        if (!this.targetMacs.has(normalizedMac)) return;
+        if (
+          !this.targetMacs.has(normalizedMac) ||
+          !(normalizedMac in this.deviceIdMap)
+        )
+          return;
         console.log(`Received RSSI for ${normalizedMac}: ${rssi} from ${esp}`);
 
         if (!this.beaconRSSI[normalizedMac])
@@ -168,7 +172,6 @@ export class PositioningSystem {
         );
         this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
 
-        // Check for 5 consecutive violations
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
           this.triggerAlert(
             mac,
@@ -176,10 +179,9 @@ export class PositioningSystem {
             "warning",
           );
           updateDeviceStatus(mac, "out_of_position");
-          this.violationCounts[mac] = 0; // Reset after alert
+          this.violationCounts[mac] = 0;
         }
       } else {
-        // Reset count if within threshold
         this.violationCounts[mac] = 0;
         updateDeviceStatus(mac, "online");
       }
@@ -213,18 +215,22 @@ export class PositioningSystem {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  // Remaining methods unchanged (setWebSocketContext, setTargetMacs, etc.)
   public setWebSocketContext(ws: WSContext) {
     this.ws = ws;
   }
 
   public setTargetMacs(macs: string[]) {
-    this.targetMacs = new Set(macs.map((mac) => mac.toLowerCase()));
+    this.targetMacs = new Set(
+      macs
+        .map((mac) => mac.toLowerCase())
+        .filter((mac) => mac in this.deviceIdMap),
+    );
   }
 
   public updateTargetMacs(macs: string[]) {
     macs
       .map((mac) => mac.toLowerCase())
+      .filter((mac) => mac in this.deviceIdMap)
       .forEach((mac) => this.targetMacs.add(mac));
   }
 
