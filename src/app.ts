@@ -84,11 +84,8 @@ app.get("/", sessionsMiddleware, (c) => c.html(serveHTML("login.html")));
 app.get("/dashboard", sessionsMiddleware, (c) =>
   c.html(serveHTML("home.html")),
 );
-app.get("/dashboard/alerts", sessionsMiddleware, (c) =>
-  c.html(serveHTML("alerts.html")),
-);
-app.get("/dashboard/settings", sessionsMiddleware, (c) =>
-  c.html(serveHTML("settings.html")),
+app.get("/dashboard/logs", sessionsMiddleware, (c) =>
+  c.html(serveHTML("logs.html")),
 );
 app.get("/dashboard/admin", sessionsMiddleware, (c) =>
   c.html(serveHTML("admin.html")),
