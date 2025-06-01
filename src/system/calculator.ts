@@ -18,13 +18,13 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 1;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1.6;
+  private readonly movementThreshold = 1;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
-    2: { x: 10, y: 0 },
-    3: { x: 0, y: 13 },
-    4: { x: 10, y: 13 },
+    2: { x: 1, y: 0 },
+    3: { x: 0, y: 3 },
+    4: { x: 1, y: 3 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 20;
+  private readonly maxViolationsBeforeAlert = 3;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -132,7 +132,7 @@ export class PositioningSystem {
         if (!lastSeen || now - lastSeen > this.offlineTimeout) {
           this.triggerAlert(
             mac,
-            `${this.deviceNameMap[mac] || mac} is offline for extended period`,
+            `${this.deviceNameMap[mac]} is offline for extended period`,
             "critical",
           );
           await updateDeviceStatus(mac, "offline");
@@ -141,8 +141,8 @@ export class PositioningSystem {
             this.ws.send(
               JSON.stringify({
                 type: "offline_alert",
-                mac: this.deviceNameMap[mac] || mac,
-                message: `${this.deviceNameMap[mac] || mac} is offline`,
+                mac: mac,
+                message: `${this.deviceNameMap[mac]} is offline`,
                 timestamp: new Date().toISOString(),
               }),
             );
@@ -185,7 +185,7 @@ export class PositioningSystem {
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
           this.triggerAlert(
             mac,
-            `${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(2)}m from saved position`,
+            `${this.deviceNameMap[mac]} moved ${distance.toFixed(2)}m from saved position`,
             "warning",
           );
           await updateDeviceStatus(mac, "out_of_position");
@@ -195,8 +195,8 @@ export class PositioningSystem {
             this.ws.send(
               JSON.stringify({
                 type: "alert",
-                mac: this.deviceNameMap[mac] || mac,
-                message: `${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(
+                mac: mac,
+                message: `${this.deviceNameMap[mac]} moved ${distance.toFixed(
                   2,
                 )}m from saved position`,
                 timestamp: new Date().toISOString(),
@@ -211,7 +211,7 @@ export class PositioningSystem {
           this.ws.send(
             JSON.stringify({
               type: "update",
-              mac: this.deviceNameMap[mac] || mac,
+              mac: mac,
               position: currentPos,
               timestamp: new Date().toISOString(),
             }),
