@@ -45,14 +45,14 @@
         transform: translateY(-2px);
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
       }
-      .alert-critical {
+      .alert-offline_alert {
         border-left-color: #e74c3c;
       }
-      .alert-warning {
+      .alert-alert {
         border-left-color: #f39c12;
       }
-      .alert-info {
-        border-left-color: #3498db;
+      .alert-position_recovered {
+        border-left-color: #2ecc71;
       }
       .status-present {
         color: #2ecc71;
@@ -73,14 +73,14 @@
         background-color: #00ff66;
         box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
       }
-      .badge-critical {
+      .badge-offline_alert {
         background-color: #e74c3c;
       }
-      .badge-warning {
+      .badge-alert {
         background-color: #f39c12;
       }
-      .badge-info {
-        background-color: #3498db;
+      .badge-position_recovered {
+        background-color: #2ecc71;
       }
       .page-link {
         cursor: pointer;
@@ -167,14 +167,25 @@
       <div class="row mb-4">
         <div class="col-6 col-md-3 mb-3">
           <div class="p-4 bg-gray-800 rounded-lg text-center">
-            <h3 class="text-lg">Critical</h3>
-            <p class="text-3xl font-bold text-red-500" id="critical-count">0</p>
+            <h3 class="text-lg">Offline Alerts</h3>
+            <p class="text-3xl font-bold text-red-500" id="offline_alert-count">
+              0
+            </p>
           </div>
         </div>
         <div class="col-6 col-md-3 mb-3">
           <div class="p-4 bg-gray-800 rounded-lg text-center">
-            <h3 class="text-lg">Warning</h3>
-            <p class="text-3xl font-bold text-yellow-500" id="warning-count">
+            <h3 class="text-lg">Alerts</h3>
+            <p class="text-3xl font-bold text-yellow-500" id="alert-count">0</p>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3">
+          <div class="p-4 bg-gray-800 rounded-lg text-center">
+            <h3 class="text-lg">Recovered</h3>
+            <p
+              class="text-3xl font-bold text-green-500"
+              id="position_recovered-count"
+            >
               0
             </p>
           </div>
@@ -197,16 +208,23 @@
             <button
               type="button"
               class="filter-btn btn btn-sm btn-dark"
-              data-filter="critical"
+              data-filter="offline_alert"
             >
-              Critical
+              Offline Alerts
             </button>
             <button
               type="button"
               class="filter-btn btn btn-sm btn-dark"
-              data-filter="warning"
+              data-filter="alert"
             >
-              Warning
+              Alerts
+            </button>
+            <button
+              type="button"
+              class="filter-btn btn btn-sm btn-dark"
+              data-filter="position_recovered"
+            >
+              Recovered
             </button>
           </div>
         </div>
@@ -422,8 +440,9 @@
           const alertsList = document.getElementById("alerts-list");
           alertsList.innerHTML = "";
 
-          let criticalCount = 0;
-          let warningCount = 0;
+          let offline_alertCount = 0;
+          let alertCount = 0;
+          let position_recoveredCount = 0;
 
           totalAlerts = data.total || 0;
           totalPages = Math.ceil(totalAlerts / (data.itemsPerPage || 20));
@@ -441,21 +460,29 @@
             } else {
               filteredAlerts.forEach((alert) => {
                 const alertType = alert.type.toLowerCase();
-                if (alertType === "critical") criticalCount++;
-                else if (alertType === "warning") warningCount++;
+                if (alertType === "offline_alert") offline_alertCount++;
+                else if (alertType === "alert") alertCount++;
+                else if (alertType === "position_recovered")
+                  position_recoveredCount++;
 
                 const alertCard = document.createElement("div");
                 alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
                 alertCard.innerHTML = `
                   <div class="d-flex align-items-center mb-2">
-                    <span class="badge badge-${alertType} me-2">${alertType.charAt(0).toUpperCase() + alertType.slice(1)}</span>
+                    <span class="badge badge-${alertType} me-2">${
+                      alertType === "offline_alert"
+                        ? "Offline"
+                        : alertType === "alert"
+                          ? "Alert"
+                          : "Recovered"
+                    }</span>
                     <h5 class="mb-0">${alert.message}</h5>
                     <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
                   </div>
                   <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
                   <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                      <i class="fas fa-laptop fa-lg ${alertType === "critical" ? "status-offline" : "status-present"} me-2"></i>
+                      <i class="fas fa-laptop fa-lg ${alertType === "offline_alert" ? "status-offline" : "status-present"} me-2"></i>
                       <div>
                         <span class="font-medium">Device-${alert.device_id}</span>
                       </div>
@@ -467,8 +494,11 @@
             }
           }
 
-          document.getElementById("critical-count").textContent = criticalCount;
-          document.getElementById("warning-count").textContent = warningCount;
+          document.getElementById("offline_alert-count").textContent =
+            offline_alertCount;
+          document.getElementById("alert-count").textContent = alertCount;
+          document.getElementById("position_recovered-count").textContent =
+            position_recoveredCount;
         } catch (error) {
           console.error("Error fetching alerts:", error);
           const alertsList = document.getElementById("alerts-list");

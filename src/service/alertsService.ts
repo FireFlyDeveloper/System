@@ -60,7 +60,7 @@ export const getAllAlerts = async (
   const offset = (page - 1) * itemsPerPage;
 
   // Only apply filter if type is 'warning' or 'critical'
-  const validTypes = ["warning", "critical"];
+  const validTypes = ["offline_alert", "alert", "position_recovered"];
   const useFilter = type && validTypes.includes(type);
 
   // Build query parts dynamically
