@@ -106,6 +106,8 @@ export class PositioningSystem {
     const name = this.deviceNameMap[mac] || mac;
     const alertMessage = `Device ${name}: ${message}`;
 
+    await updateDeviceStatus(mac, type);
+
     if (deviceId) {
       this.alarm();
       await addAlert(deviceId, alertMessage, type);
@@ -133,20 +135,9 @@ export class PositioningSystem {
           this.triggerAlert(
             mac,
             `${this.deviceNameMap[mac]} is offline for extended period`,
-            "critical",
+            "offline_alert",
           );
-          await updateDeviceStatus(mac, "offline");
           this.violationCounts[mac] = 0;
-          if (this.ws) {
-            this.ws.send(
-              JSON.stringify({
-                type: "offline_alert",
-                mac: mac,
-                message: `${this.deviceNameMap[mac]} is offline`,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          }
         }
       });
     }, this.offlineCheckInterval);
@@ -186,37 +177,17 @@ export class PositioningSystem {
           this.triggerAlert(
             mac,
             `${this.deviceNameMap[mac]} moved ${distance.toFixed(2)}m from saved position`,
-            "warning",
+            "alert",
           );
-          await updateDeviceStatus(mac, "out_of_position");
-          console.log();
           this.violationCounts[mac] = 0;
-          if (this.ws) {
-            this.ws.send(
-              JSON.stringify({
-                type: "alert",
-                mac: mac,
-                message: `${this.deviceNameMap[mac]} moved ${distance.toFixed(
-                  2,
-                )}m from saved position`,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          }
         }
       } else {
         this.violationCounts[mac] = 0;
-        await updateDeviceStatus(mac, "online");
-        if (this.ws) {
-          this.ws.send(
-            JSON.stringify({
-              type: "update",
-              mac: mac,
-              position: currentPos,
-              timestamp: new Date().toISOString(),
-            }),
-          );
-        }
+        this.triggerAlert(
+          mac,
+          `${this.deviceNameMap[mac]} is back in position`,
+          "position_recovered",
+        );
       }
     }
   }
