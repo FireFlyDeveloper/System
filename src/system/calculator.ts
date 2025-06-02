@@ -14,7 +14,7 @@ interface Position {
 
 export class PositioningSystem {
   private ws: WSContext | undefined;
-  private readonly brokerUrl = "mqtt://security.local";
+  private readonly brokerUrl = "mqtt://192.168.195.149";
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.1;
   private readonly minAnchors = 4;
