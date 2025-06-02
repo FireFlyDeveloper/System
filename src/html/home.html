@@ -638,9 +638,11 @@
             const direction = newDistance > prevDistance ? "further" : "closer";
             notificationMessage = `Device ${data.mac} moved ${direction} (${data.distance}m from saved position)`;
           }
-        } else if (data.type === "update") {
-          newStatus = "online"; // Device sent update - it's online
-          shouldNotify = false;
+        } else if (data.type === "position_recovered") {
+          newStatus = "online"; // Device is back to its position
+          shouldNotify = currentStatus.status === "warning"; // Only notify if it was previously in warning state
+          notificationKey = `${data.mac}_recovered`;
+          notificationMessage = `Device ${data.mac} has returned to its saved position`;
         }
 
         // Always update status from WebSocket (no throttling for status changes)
@@ -659,7 +661,6 @@
 
         // Update or create device entry
         const existingDevice = deviceState.devices.get(data.mac);
-        console.log(deviceState.devices);
         if (existingDevice) {
           // Update existing device with new data, preserving API data
           const updatedDevice = {
@@ -704,7 +705,11 @@
           ) {
             showAlert(
               notificationMessage,
-              newStatus === "offline" ? "danger" : "warning",
+              newStatus === "offline"
+                ? "danger"
+                : newStatus === "warning"
+                  ? "warning"
+                  : "success",
             );
             deviceState.shownNotifications.add(notificationKey);
 

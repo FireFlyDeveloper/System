@@ -16,7 +16,7 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 0.3;
+  private readonly smoothingFactor = 0.1;
   private readonly minAnchors = 4;
   private readonly movementThreshold = 0.3;
 
@@ -40,6 +40,7 @@ export class PositioningSystem {
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
   private readonly alarmCooldown = 10000;
+  private activeAlerts: Set<string> = new Set();
 
   constructor() {
     this.setupMQTT();
@@ -109,7 +110,6 @@ export class PositioningSystem {
     await updateDeviceStatus(mac, type);
 
     if (deviceId) {
-      // this.alarm();
       await addAlert(deviceId, alertMessage, type);
     }
 
@@ -124,6 +124,15 @@ export class PositioningSystem {
       );
     }
     console.warn(`⚠️ ALERT: ${alertMessage}`);
+
+    // Add to active alerts if it's an alert type (not a recovery)
+    if (type === "alert" || type === "offline_alert") {
+      this.activeAlerts.add(mac);
+      this.triggerAlarm();
+    } else if (type === "position_recovered") {
+      this.activeAlerts.delete(mac);
+      this.checkAlarmStatus();
+    }
   }
 
   private startOfflineChecker() {
@@ -183,11 +192,13 @@ export class PositioningSystem {
         }
       } else {
         this.violationCounts[mac] = 0;
-        this.triggerAlert(
-          mac,
-          `${this.deviceNameMap[mac]} is back in position`,
-          "position_recovered",
-        );
+        if (this.activeAlerts.has(mac)) {
+          this.triggerAlert(
+            mac,
+            `${this.deviceNameMap[mac]} is back in position`,
+            "position_recovered",
+          );
+        }
       }
     }
   }
@@ -251,14 +262,36 @@ export class PositioningSystem {
     return this.smoothedPositions[normMac] || null;
   }
 
-  private alarm() {
-    if (!this.alarmTimeout) {
-      fetch("http://security.local:3030/blinkLED").catch((err) =>
+  private triggerAlarm() {
+    if (!this.alarmTimeout && this.activeAlerts.size > 0) {
+      console.log("🚨 Triggering alarm due to active alerts");
+      fetch("http://192.168.195.149:3030/blinkLED").catch((err) =>
         console.error("Alarm fetch error:", err),
       );
       this.alarmTimeout = setTimeout(() => {
         this.alarmTimeout = null;
+        // Continue alarm if there are still active alerts
+        if (this.activeAlerts.size > 0) {
+          this.triggerAlarm();
+        }
       }, this.alarmCooldown);
+    }
+  }
+
+  private checkAlarmStatus() {
+    if (this.activeAlerts.size === 0) {
+      this.stopAlarm();
+    }
+  }
+
+  private stopAlarm() {
+    if (this.alarmTimeout) {
+      console.log("🛑 Stopping alarm - all issues resolved");
+      clearTimeout(this.alarmTimeout);
+      this.alarmTimeout = null;
+      fetch("http://192.168.195.149:3030/stopBlink").catch((err) =>
+        console.error("Stop alarm fetch error:", err),
+      );
     }
   }
 }
