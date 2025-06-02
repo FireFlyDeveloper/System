@@ -16,15 +16,15 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://security.local";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 1;
+  private readonly smoothingFactor = 0.3;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 1;
+  private readonly movementThreshold = 0.3;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
-    2: { x: 1, y: 0 },
+    2: { x: 0.5, y: 0 },
     3: { x: 0, y: 3 },
-    4: { x: 1, y: 3 },
+    4: { x: 0.5, y: 3 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 3;
+  private readonly maxViolationsBeforeAlert = 1;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -109,7 +109,7 @@ export class PositioningSystem {
     await updateDeviceStatus(mac, type);
 
     if (deviceId) {
-      this.alarm();
+      // this.alarm();
       await addAlert(deviceId, alertMessage, type);
     }
 
@@ -117,7 +117,7 @@ export class PositioningSystem {
       this.ws.send(
         JSON.stringify({
           type,
-          mac,
+          mac: mac.toUpperCase(),
           message: alertMessage,
           timestamp: new Date().toISOString(),
         }),
