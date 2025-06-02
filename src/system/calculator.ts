@@ -18,13 +18,13 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.1;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 0.4;
+  private readonly movementThreshold = 0.15;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
-    2: { x: 0.5, y: 0 },
-    3: { x: 0, y: 3 },
-    4: { x: 0.5, y: 3 },
+    2: { x: 0.2, y: 0 },
+    3: { x: 0, y: 1 },
+    4: { x: 0.2, y: 1 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -35,7 +35,7 @@ export class PositioningSystem {
   private readonly offlineTimeout = 30000; // 60 seconds
   private readonly offlineCheckInterval = 30000; // 30 seconds
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 1;
+  private readonly maxViolationsBeforeAlert = 3;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -198,6 +198,17 @@ export class PositioningSystem {
             `${this.deviceNameMap[mac]} is back in position`,
             "position_recovered",
           );
+        } else {
+          if (this.ws) {
+            this.ws.send(
+              JSON.stringify({
+                type: "position_recovered",
+                mac: mac.toUpperCase(),
+                message: `${this.deviceNameMap[mac] || mac} is back in position`,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
         }
       }
     }

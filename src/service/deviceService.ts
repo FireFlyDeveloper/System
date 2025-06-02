@@ -174,7 +174,7 @@ export const getDeviceById = async (id: number) => {
 // Get all devices
 export const getAllDevices = async () => {
   try {
-    const result = await pool.query("SELECT * FROM devices ORDER BY id ASC");
+    const result = await pool.query("SELECT * FROM devices ORDER BY name ASC");
     return result.rows;
   } catch (error) {
     console.error("Error fetching devices:", error);
