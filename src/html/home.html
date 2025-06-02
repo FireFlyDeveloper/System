@@ -804,10 +804,6 @@
                   <span>MAC Address:</span>
                   <span>${device.mac}</span>
                 </div>
-                <div class="d-flex justify-content-between mb-1">
-                  <span>Last Seen:</span>
-                  <span>${getTimeSinceUpdate(device.updated_at)}</span>
-                </div>
                 <div class="d-flex justify-content-between mb-3">
                   <span>Status:</span>
                   <span class="${statusBadge.replace("bg-", "text-")}">
@@ -919,10 +915,6 @@
             <div class="d-flex justify-content-between mb-1">
               <span>MAC Address:</span>
               <span>${device.mac}</span>
-            </div>
-            <div class="d-flex justify-content-between mb-1">
-              <span>Last Seen:</span>
-              <span>${getTimeSinceUpdate(device.updated_at)}</span>
             </div>
             <div class="d-flex justify-content-between mb-3">
               <span>Status:</span>
