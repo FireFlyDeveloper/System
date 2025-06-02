@@ -3,8 +3,9 @@ import mqtt from "mqtt";
 import { updateDeviceStatus } from "../service/deviceService";
 import { addAlert } from "../service/alertsService";
 
-interface AnchorRSSI {
-  [anchorId: number]: number;
+interface AnchorData {
+  rssi: number;
+  timestamp: number;
 }
 
 interface Position {
@@ -14,28 +15,35 @@ interface Position {
 
 export class PositioningSystem {
   private ws: WSContext | undefined;
-  private readonly brokerUrl = "mqtt://192.168.195.149";
+  private readonly brokerUrl = "mqtt://192.168.100.95";
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 1;
-  private readonly minAnchors = 4;
+  private readonly minAnchors = 3; // Minimum for 2D trilateration
   private readonly movementThreshold = 0.15;
+  private readonly maxSignalAge = 2500; // Max age of signal in ms
 
+  // Anchor positions in meters (update with your actual anchor positions)
   private readonly anchorPositions: { [id: number]: Position } = {
-    1: { x: 0, y: 3 },
-    2: { x: 0.5, y: 3 },
-    3: { x: 0, y: 3 },
-    4: { x: 0.5, y: 3 },
+    1: { x: 0, y: 0 }, // Anchor 1 at origin
+    2: { x: 3, y: 0 }, // Anchor 2 at 5m on x-axis
+    3: { x: 3, y: 3 }, // Anchor 3 at 5m on y-axis
+    4: { x: 0, y: 3 }, // Anchor 4 at 5m x, 5m y
   };
 
+  // BLE signal propagation constants (adjust based on your environment)
+  private readonly txPower = -59; // RSSI at 1 meter
+  private readonly pathLossExponent = 2.0; // Free space is 2.0, higher for more obstructed
+
   private targetMacs: Set<string> = new Set();
-  private beaconRSSI: { [mac: string]: AnchorRSSI } = {};
+  private beaconData: { [mac: string]: { [anchorId: number]: AnchorData } } =
+    {};
   private smoothedPositions: { [mac: string]: Position } = {};
   private externalSavedPositions: { [mac: string]: Position } = {};
   private lastSeenTimestamps: { [mac: string]: number } = {};
-  private readonly offlineTimeout = 30000; // 60 seconds
-  private readonly offlineCheckInterval = 30000; // 30 seconds
+  private readonly offlineTimeout = 30000;
+  private readonly offlineCheckInterval = 30000;
   private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 3;
+  private readonly maxViolationsBeforeAlert = 5;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -72,30 +80,35 @@ export class PositioningSystem {
       );
     });
 
-    this.client.on("message", (_topic, message) => {
+    this.client.on("message", (topic, message) => {
       try {
         const { mac, rssi, esp } = JSON.parse(message.toString());
         const normalizedMac = mac.toLowerCase();
+        const anchorId = parseInt(esp);
 
         if (
           !this.targetMacs.has(normalizedMac) ||
           !(normalizedMac in this.deviceIdMap)
         )
           return;
+
         console.log(`Received RSSI for ${normalizedMac}: ${rssi} from ${esp}`);
 
-        if (!this.beaconRSSI[normalizedMac])
-          this.beaconRSSI[normalizedMac] = {};
-        this.beaconRSSI[normalizedMac][esp] = rssi;
+        // Initialize if not exists
+        if (!this.beaconData[normalizedMac]) {
+          this.beaconData[normalizedMac] = {};
+        }
+
+        // Store data with timestamp
+        this.beaconData[normalizedMac][anchorId] = {
+          rssi,
+          timestamp: Date.now(),
+        };
 
         this.lastSeenTimestamps[normalizedMac] = Date.now();
 
-        if (
-          Object.keys(this.beaconRSSI[normalizedMac]).length >= this.minAnchors
-        ) {
-          console.log(normalizedMac, this.beaconRSSI[normalizedMac]);
-          this.processPosition(normalizedMac);
-        }
+        // Process position if we have enough fresh data
+        this.processPosition(normalizedMac);
       } catch (err) {
         console.error("MQTT message error:", err);
       }
@@ -125,7 +138,6 @@ export class PositioningSystem {
     }
     console.warn(`⚠️ ALERT: ${alertMessage}`);
 
-    // Add to active alerts if it's an alert type (not a recovery)
     if (type === "alert" || type === "offline_alert") {
       this.activeAlerts.add(mac);
       this.triggerAlarm();
@@ -153,9 +165,23 @@ export class PositioningSystem {
   }
 
   private async processPosition(mac: string) {
-    const newPos = this.estimatePosition(this.beaconRSSI[mac]);
+    // First clean up old data
+    this.cleanOldData(mac);
+
+    // Check if we have enough fresh data
+    const anchorCount = this.beaconData[mac]
+      ? Object.keys(this.beaconData[mac]).length
+      : 0;
+    console.log(anchorCount);
+    if (anchorCount < this.minAnchors) {
+      console.log(`Not enough fresh data for ${mac} (${anchorCount} anchors)`);
+      return;
+    }
+
+    const newPos = this.trilateratePosition(mac);
     if (!newPos) return;
 
+    // Apply smoothing
     if (!this.smoothedPositions[mac]) {
       this.smoothedPositions[mac] = newPos;
     } else {
@@ -214,25 +240,142 @@ export class PositioningSystem {
     }
   }
 
-  private estimatePosition(rssiMap: AnchorRSSI): Position | null {
-    let totalWeight = 0;
-    let weightedX = 0;
-    let weightedY = 0;
+  private cleanOldData(mac: string) {
+    const now = Date.now();
+    if (this.beaconData[mac]) {
+      Object.keys(this.beaconData[mac]).forEach((anchorIdStr) => {
+        const anchorId = parseInt(anchorIdStr);
+        if (
+          now - this.beaconData[mac][anchorId].timestamp >
+          this.maxSignalAge
+        ) {
+          delete this.beaconData[mac][anchorId];
+        }
+      });
+    }
+  }
 
-    for (const [anchorIdStr, rssi] of Object.entries(rssiMap)) {
-      const anchorId = Number(anchorIdStr);
-      const pos = this.anchorPositions[anchorId];
-      if (!pos) continue;
+  private rssiToDistance(rssi: number): number {
+    // Log-distance path loss model
+    return Math.pow(10, (this.txPower - rssi) / (10 * this.pathLossExponent));
+  }
 
-      const weight = Math.pow(10, rssi / 10);
-      totalWeight += weight;
-      weightedX += pos.x * weight;
-      weightedY += pos.y * weight;
+  private trilateratePosition(mac: string): Position | null {
+    const anchorData = this.beaconData[mac];
+    if (!anchorData) return null;
+
+    // Convert anchor data to array of {position, distance} objects
+    const anchors = Object.entries(anchorData).map(([anchorIdStr, data]) => {
+      const anchorId = parseInt(anchorIdStr);
+      return {
+        position: this.anchorPositions[anchorId],
+        distance: this.rssiToDistance(data.rssi),
+      };
+    });
+
+    // Need at least 3 anchors for 2D trilateration
+    if (anchors.length < 3) return null;
+
+    // Use the first anchor as reference
+    const A = anchors[0];
+    const B = anchors[1];
+    const C = anchors[2];
+
+    // Calculate differences between reference anchor and others
+    const dA = A.distance;
+    const dB = B.distance;
+    const dC = C.distance;
+
+    const xA = A.position.x;
+    const yA = A.position.y;
+    const xB = B.position.x;
+    const yB = B.position.y;
+    const xC = C.position.x;
+    const yC = C.position.y;
+
+    // Calculate vector from A to B
+    const ABx = xB - xA;
+    const ABy = yB - yA;
+
+    // Calculate vector from A to C
+    const ACx = xC - xA;
+    const ACy = yC - yA;
+
+    // Calculate the dot product of AB and AC
+    const ABAC = ABx * ACx + ABy * ACy;
+
+    // Calculate the length of AB squared
+    const ABAB = ABx * ABx + ABy * ABy;
+
+    // Calculate the length of AC squared
+    const ACAC = ACx * ACx + ACy * ACy;
+
+    // Calculate denominator
+    const denom = ABAB * ACAC - ABAC * ABAC;
+
+    if (Math.abs(denom) < 0.000001) {
+      console.warn("Anchors are colinear, cannot trilaterate");
+      return null;
     }
 
-    return totalWeight > 0
-      ? { x: weightedX / totalWeight, y: weightedY / totalWeight }
-      : null;
+    // Calculate the distance from A to projection of C on AB
+    let t = ACx * (xC - xA) + ACy * (yC - yA);
+    t /= denom;
+
+    // Calculate the projection of C on AB
+    const projCx = xA + t * ABx;
+    const projCy = yA + t * ABy;
+
+    // Calculate the vector from projection to C
+    const CprojCx = xC - projCx;
+    const CprojCy = yC - projCy;
+
+    // Calculate the length of this vector
+    const lenCprojC = Math.sqrt(CprojCx * CprojCx + CprojCy * CprojCy);
+
+    if (lenCprojC < 0.000001) {
+      console.warn("Anchors are colinear, cannot trilaterate");
+      return null;
+    }
+
+    // Normalize the vector
+    const normCprojCx = CprojCx / lenCprojC;
+    const normCprojCy = CprojCy / lenCprojC;
+
+    // Calculate the position using trilateration
+    const x =
+      projCx +
+      (normCprojCx *
+        (dA * dA - dB * dB + xB * xB + yB * yB - xA * xA - yA * yA)) /
+        (2 * lenCprojC);
+    const y =
+      projCy +
+      (normCprojCy *
+        (dA * dA - dB * dB + xB * xB + yB * yB - xA * xA - yA * yA)) /
+        (2 * lenCprojC);
+
+    // If we have a 4th anchor, we can refine the position
+    if (anchors.length >= 4) {
+      const D = anchors[3];
+      const dD = D.distance;
+      const xD = D.position.x;
+      const yD = D.position.y;
+
+      // Calculate distance from estimated position to D
+      const estDistToD = Math.sqrt((x - xD) * (x - xD) + (y - yD) * (y - yD));
+
+      // Adjust position based on 4th anchor
+      const error = dD - estDistToD;
+      const adjustX = ((x - xD) / estDistToD) * error * 0.5;
+      const adjustY = ((y - yD) / estDistToD) * error * 0.5;
+
+      return {
+        x: x + adjustX,
+        y: y + adjustY,
+      };
+    }
+
+    return { x, y };
   }
 
   private calculateDistance(pos1: Position, pos2: Position): number {
@@ -281,7 +424,6 @@ export class PositioningSystem {
       );
       this.alarmTimeout = setTimeout(() => {
         this.alarmTimeout = null;
-        // Continue alarm if there are still active alerts
         if (this.activeAlerts.size > 0) {
           this.triggerAlarm();
         }
