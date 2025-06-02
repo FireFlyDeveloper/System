@@ -16,15 +16,15 @@ export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = "mqtt://192.168.195.149";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 0.1;
+  private readonly smoothingFactor = 1;
   private readonly minAnchors = 4;
   private readonly movementThreshold = 0.15;
 
   private readonly anchorPositions: { [id: number]: Position } = {
-    1: { x: 0, y: 0 },
-    2: { x: 0.2, y: 0 },
-    3: { x: 0, y: 1 },
-    4: { x: 0.2, y: 1 },
+    1: { x: 0, y: 3 },
+    2: { x: 0.5, y: 3 },
+    3: { x: 0, y: 3 },
+    4: { x: 0.5, y: 3 },
   };
 
   private targetMacs: Set<string> = new Set();
@@ -224,7 +224,7 @@ export class PositioningSystem {
       const pos = this.anchorPositions[anchorId];
       if (!pos) continue;
 
-      const weight = Math.pow(10, rssi / 20);
+      const weight = Math.pow(10, rssi / 10);
       totalWeight += weight;
       weightedX += pos.x * weight;
       weightedY += pos.y * weight;
