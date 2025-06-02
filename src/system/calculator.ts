@@ -18,7 +18,7 @@ export class PositioningSystem {
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 0.1;
   private readonly minAnchors = 4;
-  private readonly movementThreshold = 0.3;
+  private readonly movementThreshold = 0.4;
 
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
