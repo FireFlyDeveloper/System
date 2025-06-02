@@ -15,7 +15,7 @@ interface Position {
 
 export class PositioningSystem {
   private ws: WSContext | undefined;
-  private readonly brokerUrl = "mqtt://192.168.100.95";
+  private readonly brokerUrl = process.env.brokerUrl || "mqtt://localhost";
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly smoothingFactor = 1;
   private readonly minAnchors = 3; // Minimum for 2D trilateration
@@ -25,9 +25,9 @@ export class PositioningSystem {
   // Anchor positions in meters (update with your actual anchor positions)
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 }, // Anchor 1 at origin
-    2: { x: 3, y: 0 }, // Anchor 2 at 5m on x-axis
-    3: { x: 3, y: 3 }, // Anchor 3 at 5m on y-axis
-    4: { x: 0, y: 3 }, // Anchor 4 at 5m x, 5m y
+    2: { x: 5, y: 0 }, // Anchor 2 at 5m on x-axis
+    3: { x: 0, y: 5 }, // Anchor 3 at 5m on y-axis
+    4: { x: 5, y: 5 }, // Anchor 4 at 5m x, 5m y
   };
 
   // BLE signal propagation constants (adjust based on your environment)
