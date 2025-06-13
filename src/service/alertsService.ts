@@ -54,25 +54,40 @@ export const getAlertsByDeviceId = async (device_id: number) => {
 // Get all alerts with pagination (20 items per page) and optional type filter
 export const getAllAlerts = async (
   page: number = 1,
-  type?: string, // 'warning' | 'critical' or undefined
+  type?: string, // 'offline_alert' | 'alert' | 'position_recovered' or undefined
+  date?: string, // Date in YYYY-MM-DD format
 ) => {
   const itemsPerPage = 20;
   const offset = (page - 1) * itemsPerPage;
 
-  // Only apply filter if type is 'warning' or 'critical'
+  // Only apply filters if type is valid or date is provided
   const validTypes = ["offline_alert", "alert", "position_recovered"];
-  const useFilter = type && validTypes.includes(type);
+  const useTypeFilter = type && validTypes.includes(type);
+  const useDateFilter = date && /^\d{4}-\d{2}-\d{2}$/.test(date);
 
-  // Build query parts dynamically
-  const whereClause = useFilter ? `WHERE type = $1` : ``;
-  const orderLimitOffset = `ORDER BY created_at DESC LIMIT $${useFilter ? 2 : 1} OFFSET $${useFilter ? 3 : 2}`;
+  // Build where clause dynamically
+  const whereClauses: string[] = [];
+  const params: (string | number)[] = [];
 
-  // Build params array
-  const params = [];
-  if (useFilter) {
+  if (useTypeFilter) {
+    whereClauses.push(`type = $${params.length + 1}`);
     params.push(type);
   }
+
+  if (useDateFilter) {
+    whereClauses.push(`DATE(created_at) = $${params.length + 1}`);
+    params.push(date);
+  }
+
+  // Construct the WHERE clause
+  const whereClause =
+    whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  // Add pagination parameters
   params.push(itemsPerPage, offset);
+
+  // Build the full query
+  const orderLimitOffset = `ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
   try {
     // Fetch paginated alerts
@@ -81,12 +96,17 @@ export const getAllAlerts = async (
       params,
     );
 
-    // Fetch total count with same filter
-    const countParams = useFilter ? [type] : [];
-    const countWhere = useFilter ? `WHERE type = $1` : ``;
+    // Fetch total count with same filters
     const countQuery = pool.query(
-      `SELECT COUNT(*) FROM alerts ${countWhere}`,
-      countParams,
+      `SELECT COUNT(*) FROM alerts ${whereClause}`,
+      params.slice(
+        0,
+        useTypeFilter && useDateFilter
+          ? 2
+          : useTypeFilter || useDateFilter
+            ? 1
+            : 0,
+      ),
     );
 
     const [alertsResult, countResult] = await Promise.all([
@@ -99,7 +119,8 @@ export const getAllAlerts = async (
       total: parseInt(countResult.rows[0].count, 10),
       page,
       itemsPerPage,
-      filterType: useFilter ? type : "all",
+      filterType: useTypeFilter ? type : "all",
+      filterDate: useDateFilter ? date : undefined,
     };
   } catch (error) {
     console.error("Error fetching all alerts:", error);
@@ -108,7 +129,8 @@ export const getAllAlerts = async (
       total: 0,
       page,
       itemsPerPage,
-      filterType: useFilter ? type : "all",
+      filterType: useTypeFilter ? type : "all",
+      filterDate: useDateFilter ? date : undefined,
     };
   }
 };

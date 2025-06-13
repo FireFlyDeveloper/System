@@ -32,7 +32,8 @@ export class AlertController {
   async getAllFilter(ctx: Context) {
     const page = Number(ctx.req.param("page")) || 1;
     const filter = ctx.req.param("filter");
-    const alerts = await getAllAlerts(page, filter);
+    const date = ctx.req.param("date");
+    const alerts = await getAllAlerts(page, filter, date);
     return ctx.json(alerts);
   }
 

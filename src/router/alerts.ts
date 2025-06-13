@@ -14,7 +14,7 @@ router.get(
 );
 router.get("/alerts/:page", authMiddleware, alertController.getAll);
 router.get(
-  "/alerts/:page/:filter",
+  "/alerts/:page/:filter/:date",
   authMiddleware,
   alertController.getAllFilter,
 );

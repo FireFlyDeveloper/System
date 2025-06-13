@@ -19,6 +19,11 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
+    <!-- Flatpickr CSS for date picker -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css"
+    />
     <style>
       body {
         background-color: #121212;
@@ -107,6 +112,15 @@
         background-color: #3b82f6 !important;
         color: white !important;
       }
+      .flatpickr-input {
+        background-color: #2a2a2a;
+        color: #e0e0e0;
+        border-color: #4a4a4a;
+      }
+      .flatpickr-input:focus {
+        background-color: #2a2a2a;
+        border-color: #3b82f6;
+      }
     </style>
   </head>
   <body class="min-h-screen">
@@ -163,41 +177,12 @@
         </div>
       </div>
 
-      <!-- Alert Stats -->
-      <div class="row mb-4">
-        <div class="col-6 col-md-3 mb-3">
-          <div class="p-4 bg-gray-800 rounded-lg text-center">
-            <h3 class="text-lg">Offline Alerts</h3>
-            <p class="text-3xl font-bold text-red-500" id="offline_alert-count">
-              0
-            </p>
-          </div>
-        </div>
-        <div class="col-6 col-md-3 mb-3">
-          <div class="p-4 bg-gray-800 rounded-lg text-center">
-            <h3 class="text-lg">Alerts</h3>
-            <p class="text-3xl font-bold text-yellow-500" id="alert-count">0</p>
-          </div>
-        </div>
-        <div class="col-6 col-md-3 mb-3">
-          <div class="p-4 bg-gray-800 rounded-lg text-center">
-            <h3 class="text-lg">Recovered</h3>
-            <p
-              class="text-3xl font-bold text-green-500"
-              id="position_recovered-count"
-            >
-              0
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Filter & Search -->
+      <!-- Filter -->
       <div
         class="d-flex flex-wrap justify-content-between align-items-center mb-4"
       >
-        <div class="mb-3 mb-md-0">
-          <div class="btn-group" role="group" id="filter-buttons">
+        <div class="mb-3 mb-md-0 d-flex align-items-center">
+          <div class="btn-group me-3" role="group" id="filter-buttons">
             <button
               type="button"
               class="filter-btn btn btn-sm btn-dark active"
@@ -210,39 +195,30 @@
               class="filter-btn btn btn-sm btn-dark"
               data-filter="offline_alert"
             >
-              Offline Alerts
+              Offline
             </button>
             <button
               type="button"
               class="filter-btn btn btn-sm btn-dark"
               data-filter="alert"
             >
-              Alerts
+              Moved
             </button>
             <button
               type="button"
               class="filter-btn btn btn-sm btn-dark"
               data-filter="position_recovered"
             >
-              Recovered
+              Backed
             </button>
           </div>
-        </div>
-        <div>
-          <div class="input-group">
+          <div class="input-group input-group-sm" style="width: 200px">
             <input
               type="text"
-              class="form-control form-control-sm bg-gray-700 border-gray-600 text-white"
-              placeholder="Search alerts..."
-              id="search-input"
+              class="form-control bg-gray-700 border-gray-600 text-white"
+              id="date-filter"
+              placeholder="Select date"
             />
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              type="button"
-              id="search-btn"
-            >
-              <i class="fas fa-search"></i>
-            </button>
           </div>
         </div>
       </div>
@@ -266,8 +242,9 @@
       <p>Version 3.5.2</p>
     </footer>
 
-    <!-- Bootstrap & Custom Scripts -->
+    <!-- Bootstrap & Flatpickr & Custom Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <script>
       // Current page state
       let currentPage = 1;
@@ -277,7 +254,18 @@
       let refreshInterval = null;
       let isManualRefresh = false;
       let currentFilter = "all";
-      let currentSearchTerm = "";
+      let currentDate = new Date().toISOString().split("T")[0]; // Default to today
+
+      // Initialize Flatpickr
+      flatpickr("#date-filter", {
+        dateFormat: "Y-m-d",
+        defaultDate: currentDate,
+        onChange: function (selectedDates, dateStr) {
+          currentDate = dateStr;
+          currentPage = 1;
+          fetchAlerts();
+        },
+      });
 
       // Update uptime via WebSocket
       function updateUptime() {
@@ -399,17 +387,6 @@
         await fetchAlerts();
       }
 
-      // Search alerts
-      function searchAlerts(alerts) {
-        if (!currentSearchTerm) return alerts;
-        const term = currentSearchTerm.toLowerCase();
-        return alerts.filter(
-          (alert) =>
-            alert.message.toLowerCase().includes(term) ||
-            alert.device_id.toString().includes(term),
-        );
-      }
-
       // Update filter buttons
       function updateFilterButtons() {
         const buttons = document.querySelectorAll(".filter-btn");
@@ -431,7 +408,7 @@
           }
 
           const response = await fetch(
-            `/api/alerts/${currentPage}/${currentFilter}`,
+            `/api/alerts/${currentPage}/${currentFilter}/${currentDate}`,
           );
           if (!response.ok)
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -439,10 +416,6 @@
           const data = await response.json();
           const alertsList = document.getElementById("alerts-list");
           alertsList.innerHTML = "";
-
-          let offline_alertCount = 0;
-          let alertCount = 0;
-          let position_recoveredCount = 0;
 
           totalAlerts = data.total || 0;
           totalPages = Math.ceil(totalAlerts / (data.itemsPerPage || 20));
@@ -452,53 +425,35 @@
             alertsList.innerHTML =
               '<div class="text-center py-4 text-gray-500">No alerts found</div>';
           } else {
-            const filteredAlerts = searchAlerts(data.alerts);
-
-            if (filteredAlerts.length === 0) {
-              alertsList.innerHTML =
-                '<div class="text-center py-4 text-gray-500">No alerts match your search criteria</div>';
-            } else {
-              filteredAlerts.forEach((alert) => {
-                const alertType = alert.type.toLowerCase();
-                if (alertType === "offline_alert") offline_alertCount++;
-                else if (alertType === "alert") alertCount++;
-                else if (alertType === "position_recovered")
-                  position_recoveredCount++;
-
-                const alertCard = document.createElement("div");
-                alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
-                alertCard.innerHTML = `
-                  <div class="d-flex align-items-center mb-2">
-                    <span class="badge badge-${alertType} me-2">${
-                      alertType === "offline_alert"
-                        ? "Offline"
-                        : alertType === "alert"
-                          ? "Alert"
-                          : "Recovered"
-                    }</span>
-                    <h5 class="mb-0">${alert.message}</h5>
-                    <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
-                  </div>
-                  <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                      <i class="fas fa-laptop fa-lg ${alertType === "offline_alert" ? "status-offline" : "status-present"} me-2"></i>
-                      <div>
-                        <span class="font-medium">Device-${alert.device_id}</span>
-                      </div>
+            data.alerts.forEach((alert) => {
+              const alertType = alert.type.toLowerCase();
+              const alertCard = document.createElement("div");
+              alertCard.className = `alert-card alert-${alertType} p-4 mb-3`;
+              alertCard.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                  <span class="badge badge-${alertType} me-2">${
+                    alertType === "offline_alert"
+                      ? "Offline"
+                      : alertType === "alert"
+                        ? "Moved"
+                        : "Backed"
+                  }</span>
+                  <h5 class="mb-0">${alert.message}</h5>
+                  <span class="ms-auto text-sm text-gray-400">${new Date(alert.created_at).toLocaleString()}</span>
+                </div>
+                <p class="mb-3 text-gray-300">Device ID: ${alert.device_id}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="d-flex align-items-center">
+                    <i class="fas fa-laptop fa-lg ${alertType === "offline_alert" ? "status-offline" : "status-present"} me-2"></i>
+                    <div>
+                      <span class="font-medium">Device-${alert.device_id}</span>
                     </div>
                   </div>
-                `;
-                alertsList.appendChild(alertCard);
-              });
-            }
+                </div>
+              `;
+              alertsList.appendChild(alertCard);
+            });
           }
-
-          document.getElementById("offline_alert-count").textContent =
-            offline_alertCount;
-          document.getElementById("alert-count").textContent = alertCount;
-          document.getElementById("position_recovered-count").textContent =
-            position_recoveredCount;
         } catch (error) {
           console.error("Error fetching alerts:", error);
           const alertsList = document.getElementById("alerts-list");
@@ -544,21 +499,6 @@
             fetchAlerts();
           });
         });
-
-        // Search functionality
-        document.getElementById("search-btn").addEventListener("click", () => {
-          currentSearchTerm = document.getElementById("search-input").value;
-          fetchAlerts();
-        });
-
-        document
-          .getElementById("search-input")
-          .addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-              currentSearchTerm = document.getElementById("search-input").value;
-              fetchAlerts();
-            }
-          });
 
         // Clean up
         window.addEventListener("beforeunload", () => {
