@@ -164,7 +164,7 @@ export class PositioningSystem {
     const name = this.deviceNameMap[mac];
     const alertMessage = `Device ${name}: ${message}`;
 
-    await updateDeviceStatus(mac, type).catch((err) =>
+    await updateDeviceStatus(mac.toUpperCase(), type).catch((err) =>
       console.error(`Failed to update device status for ${mac}:`, err),
     );
 
