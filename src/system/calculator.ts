@@ -13,37 +13,68 @@ interface Position {
   y: number;
 }
 
+// Kalman Filter for RSSI smoothing
+class KalmanFilter {
+  private x: number; // Estimated RSSI
+  private P: number; // Estimate uncertainty
+  private R: number; // Process noise covariance
+  private Q: number; // Measurement noise covariance
+
+  constructor(initialRssi: number) {
+    this.x = initialRssi;
+    this.P = 1.0;
+    this.R = 0.01; // Small for stationary devices
+    this.Q = 1.0; // Tighter smoothing for BLE RSSI (~1 dBm std dev)
+  }
+
+  public update(measurement: number): number {
+    // Predict
+    const x_pred = this.x;
+    const P_pred = this.P + this.R;
+
+    // Update
+    const K = P_pred / (P_pred + this.Q); // Kalman gain
+    this.x = x_pred + K * (measurement - x_pred);
+    this.P = (1 - K) * P_pred;
+
+    return this.x;
+  }
+}
+
 export class PositioningSystem {
   private ws: WSContext | undefined;
   private readonly brokerUrl = process.env.brokerUrl || "mqtt://localhost";
   private readonly client = mqtt.connect(this.brokerUrl);
-  private readonly smoothingFactor = 1;
   private readonly minAnchors = 3; // Minimum for 2D trilateration
-  private readonly movementThreshold = 0.15;
-  private readonly maxSignalAge = 2500; // Max age of signal in ms
+  private readonly movementThreshold = 0.5; // Meters for movement detection
+  private readonly maxSignalAge = 3000; // Max signal age in ms
+  private readonly alertCooldown = 5000; // Cooldown for alerts in ms
+  private readonly maxViolationsBeforeAlert = 5; // Consecutive violations before alert
 
-  // Anchor positions in meters (update with your actual anchor positions)
+  // Anchor positions
   private readonly anchorPositions: { [id: number]: Position } = {
-    1: { x: 0, y: 0 }, // Anchor 1 at origin
-    2: { x: 5, y: 0 }, // Anchor 2 at 5m on x-axis
-    3: { x: 0, y: 5 }, // Anchor 3 at 5m on y-axis
-    4: { x: 5, y: 5 }, // Anchor 4 at 5m x, 5m y
+    1: { x: 0, y: 0 },
+    2: { x: 5, y: 0 },
+    3: { x: 0, y: 5 },
   };
 
-  // BLE signal propagation constants (adjust based on your environment)
-  private readonly txPower = -59; // RSSI at 1 meter
-  private readonly pathLossExponent = 2.0; // Free space is 2.0, higher for more obstructed
+  // BLE signal propagation constants (adjust based on environment)
+  private readonly txPower = -65; // RSSI at 1 meter (calibrate empirically)
+  private readonly pathLossExponent = 2.7; // Adjusted for indoor environment
 
   private targetMacs: Set<string> = new Set();
-  private beaconData: { [mac: string]: { [anchorId: number]: AnchorData } } =
+  private beaconData: { [mac: string]: { [anchorId: number]: AnchorData[] } } =
     {};
-  private smoothedPositions: { [mac: string]: Position } = {};
+  private kalmanFilters: {
+    [mac: string]: { [anchorId: number]: KalmanFilter };
+  } = {};
+  private currentPositions: { [mac: string]: Position } = {};
   private externalSavedPositions: { [mac: string]: Position } = {};
   private lastSeenTimestamps: { [mac: string]: number } = {};
+  private lastAlertTimestamps: { [mac: string]: number } = {};
+  private violationCounts: { [mac: string]: number } = {};
   private readonly offlineTimeout = 30000;
   private readonly offlineCheckInterval = 30000;
-  private violationCounts: { [mac: string]: number } = {};
-  private readonly maxViolationsBeforeAlert = 5;
   private deviceIdMap: { [mac: string]: number } = {};
   private deviceNameMap: { [mac: string]: string } = {};
   private alarmTimeout: NodeJS.Timeout | null = null;
@@ -64,9 +95,7 @@ export class PositioningSystem {
       if (device.enable) {
         const mac = device.mac.toLowerCase();
         this.deviceIdMap[mac] = device.id;
-        if (device.name) {
-          this.deviceNameMap[mac] = device.name;
-        }
+        this.deviceNameMap[mac] = device.name || mac;
       }
     });
     console.log("Device ID map updated:", this.deviceIdMap);
@@ -75,8 +104,10 @@ export class PositioningSystem {
   private setupMQTT() {
     this.client.on("connect", () => {
       console.log("Connected to MQTT broker");
-      ["esp32_1/rssi", "esp32_2/rssi", "esp32_3/rssi", "esp32_4/rssi"].forEach(
-        (topic) => this.client.subscribe(topic),
+      ["esp32_1/rssi", "esp32_2/rssi", "esp32_3/rssi"].forEach((topic) =>
+        this.client.subscribe(topic, (err) => {
+          if (err) console.error(`Failed to subscribe to ${topic}:`, err);
+        }),
       );
     });
 
@@ -94,20 +125,26 @@ export class PositioningSystem {
 
         console.log(`Received RSSI for ${normalizedMac}: ${rssi} from ${esp}`);
 
-        // Initialize if not exists
         if (!this.beaconData[normalizedMac]) {
           this.beaconData[normalizedMac] = {};
+          this.kalmanFilters[normalizedMac] = {};
+        }
+        if (!this.beaconData[normalizedMac][anchorId]) {
+          this.beaconData[normalizedMac][anchorId] = [];
+        }
+        if (!this.kalmanFilters[normalizedMac][anchorId]) {
+          this.kalmanFilters[normalizedMac][anchorId] = new KalmanFilter(rssi);
         }
 
-        // Store data with timestamp
-        this.beaconData[normalizedMac][anchorId] = {
+        this.beaconData[normalizedMac][anchorId].push({
           rssi,
           timestamp: Date.now(),
-        };
+        });
+
+        // Update Kalman filter
+        this.kalmanFilters[normalizedMac][anchorId].update(rssi);
 
         this.lastSeenTimestamps[normalizedMac] = Date.now();
-
-        // Process position if we have enough fresh data
         this.processPosition(normalizedMac);
       } catch (err) {
         console.error("MQTT message error:", err);
@@ -116,14 +153,25 @@ export class PositioningSystem {
   }
 
   private async triggerAlert(mac: string, message: string, type: string) {
+    const now = Date.now();
+    const lastAlert = this.lastAlertTimestamps[mac] || 0;
+    if (now - lastAlert < this.alertCooldown && type !== "offline_alert") {
+      return; // Skip alert during cooldown
+    }
+
+    this.lastAlertTimestamps[mac] = now;
     const deviceId = this.deviceIdMap[mac];
-    const name = this.deviceNameMap[mac] || mac;
+    const name = this.deviceNameMap[mac];
     const alertMessage = `Device ${name}: ${message}`;
 
-    await updateDeviceStatus(mac, type);
+    await updateDeviceStatus(mac, type).catch((err) =>
+      console.error(`Failed to update device status for ${mac}:`, err),
+    );
 
     if (deviceId) {
-      await addAlert(deviceId, alertMessage, type);
+      await addAlert(deviceId, alertMessage, type).catch((err) =>
+        console.error(`Failed to add alert for ${mac}:`, err),
+      );
     }
 
     if (this.ws) {
@@ -143,6 +191,7 @@ export class PositioningSystem {
       this.triggerAlarm();
     } else if (type === "position_recovered") {
       this.activeAlerts.delete(mac);
+      this.violationCounts[mac] = 0; // Reset violations on recovery
       this.checkAlarmStatus();
     }
   }
@@ -150,91 +199,93 @@ export class PositioningSystem {
   private startOfflineChecker() {
     setInterval(() => {
       const now = Date.now();
-      Array.from(this.targetMacs).forEach(async (mac) => {
-        const lastSeen = this.lastSeenTimestamps[mac];
-        if (!lastSeen || now - lastSeen > this.offlineTimeout) {
+      Array.from(this.targetMacs).forEach((mac) => {
+        const lastSeen = this.lastSeenTimestamps[mac] || 0;
+        if (now - lastSeen > this.offlineTimeout) {
+          this.violationCounts[mac] = 0; // Reset violations on offline
           this.triggerAlert(
             mac,
             `${this.deviceNameMap[mac]} is offline for extended period`,
             "offline_alert",
           );
-          this.violationCounts[mac] = 0;
         }
       });
     }, this.offlineCheckInterval);
   }
 
   private async processPosition(mac: string) {
-    // First clean up old data
     this.cleanOldData(mac);
 
-    // Check if we have enough fresh data
-    const anchorCount = this.beaconData[mac]
-      ? Object.keys(this.beaconData[mac]).length
-      : 0;
-    console.log(anchorCount);
+    const anchorCount = Object.values(this.beaconData[mac] || {}).filter(
+      (arr) => arr.length > 0,
+    ).length;
     if (anchorCount < this.minAnchors) {
       console.log(`Not enough fresh data for ${mac} (${anchorCount} anchors)`);
       return;
     }
 
     const newPos = this.trilateratePosition(mac);
-    if (!newPos) return;
-
-    // Apply smoothing
-    if (!this.smoothedPositions[mac]) {
-      this.smoothedPositions[mac] = newPos;
-    } else {
-      this.smoothedPositions[mac].x =
-        this.smoothingFactor * newPos.x +
-        (1 - this.smoothingFactor) * this.smoothedPositions[mac].x;
-      this.smoothedPositions[mac].y =
-        this.smoothingFactor * newPos.y +
-        (1 - this.smoothingFactor) * this.smoothedPositions[mac].y;
+    if (!newPos) {
+      console.log(`Failed to trilaterate position for ${mac}`);
+      return;
     }
 
-    const currentPos = this.smoothedPositions[mac];
-    const savedPos = this.externalSavedPositions[mac];
+    // Strict bounds check
+    if (newPos.x < 0 || newPos.x > 5 || newPos.y < 0 || newPos.y > 5) {
+      console.log(
+        `Position out of bounds for ${mac}: (x: ${newPos.x.toFixed(
+          2,
+        )}, y: ${newPos.y.toFixed(2)})`,
+      );
+      return;
+    }
 
+    this.currentPositions[mac] = newPos;
     console.log(
-      `Beacon ${this.deviceNameMap[mac] || mac} at (x: ${currentPos.x.toFixed(2)}, y: ${currentPos.y.toFixed(2)})`,
+      `Beacon ${this.deviceNameMap[mac]} at (x: ${newPos.x.toFixed(
+        2,
+      )}, y: ${newPos.y.toFixed(2)})`,
     );
 
+    const savedPos = this.externalSavedPositions[mac];
     if (savedPos) {
-      const distance = this.calculateDistance(currentPos, savedPos);
+      console.log(
+        `Saved position for ${mac}: (x: ${savedPos.x.toFixed(
+          2,
+        )}, y: ${savedPos.y.toFixed(2)})`,
+      );
+      const distance = this.calculateDistance(newPos, savedPos);
       if (distance > this.movementThreshold) {
-        console.log(
-          `⚠️ Device ${this.deviceNameMap[mac] || mac} moved ${distance.toFixed(2)}m from saved position!`,
-        );
         this.violationCounts[mac] = (this.violationCounts[mac] || 0) + 1;
+        console.log(
+          `⚠️ Device ${this.deviceNameMap[mac]} moved ${distance.toFixed(
+            2,
+          )}m from saved position! (Violation ${this.violationCounts[mac]}/${
+            this.maxViolationsBeforeAlert
+          })`,
+        );
 
         if (this.violationCounts[mac] >= this.maxViolationsBeforeAlert) {
           this.triggerAlert(
             mac,
-            `${this.deviceNameMap[mac]} moved ${distance.toFixed(2)}m from saved position`,
+            `Moved ${distance.toFixed(2)}m from saved position`,
             "alert",
           );
-          this.violationCounts[mac] = 0;
+          this.violationCounts[mac] = 0; // Reset after alert
         }
       } else {
-        this.violationCounts[mac] = 0;
+        this.violationCounts[mac] = 0; // Reset violations if within threshold
         if (this.activeAlerts.has(mac)) {
-          this.triggerAlert(
-            mac,
-            `${this.deviceNameMap[mac]} is back in position`,
-            "position_recovered",
+          this.triggerAlert(mac, `Is back in position`, "position_recovered");
+        } else if (this.ws) {
+          this.ws.send(
+            JSON.stringify({
+              type: "position_recovered",
+              mac: mac.toUpperCase(),
+              message: `${this.deviceNameMap[mac]} is back in position`,
+              timestamp: new Date().toISOString(),
+            }),
           );
-        } else {
-          if (this.ws) {
-            this.ws.send(
-              JSON.stringify({
-                type: "position_recovered",
-                mac: mac.toUpperCase(),
-                message: `${this.deviceNameMap[mac] || mac} is back in position`,
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          }
         }
       }
     }
@@ -242,137 +293,99 @@ export class PositioningSystem {
 
   private cleanOldData(mac: string) {
     const now = Date.now();
-    if (this.beaconData[mac]) {
-      Object.keys(this.beaconData[mac]).forEach((anchorIdStr) => {
+    const data = this.beaconData[mac];
+    if (data) {
+      for (const anchorIdStr of Object.keys(data)) {
         const anchorId = parseInt(anchorIdStr);
-        if (
-          now - this.beaconData[mac][anchorId].timestamp >
-          this.maxSignalAge
-        ) {
-          delete this.beaconData[mac][anchorId];
+        data[anchorId] = data[anchorId].filter(
+          (d) => now - d.timestamp <= this.maxSignalAge,
+        );
+        if (data[anchorId].length === 0) {
+          delete data[anchorId];
+          delete this.kalmanFilters[mac]?.[anchorId];
         }
-      });
+      }
+      if (Object.keys(data).length === 0) {
+        delete this.beaconData[mac];
+        delete this.kalmanFilters[mac];
+      }
     }
   }
 
   private rssiToDistance(rssi: number): number {
-    // Log-distance path loss model
-    return Math.pow(10, (this.txPower - rssi) / (10 * this.pathLossExponent));
+    const distance = Math.pow(
+      10,
+      (this.txPower - rssi) / (10 * this.pathLossExponent),
+    );
+    // Clamp distance to prevent unrealistic values
+    return Math.max(0.1, Math.min(distance, 10));
   }
 
   private trilateratePosition(mac: string): Position | null {
     const anchorData = this.beaconData[mac];
     if (!anchorData) return null;
 
-    // Convert anchor data to array of {position, distance} objects
-    const anchors = Object.entries(anchorData).map(([anchorIdStr, data]) => {
-      const anchorId = parseInt(anchorIdStr);
-      return {
-        position: this.anchorPositions[anchorId],
-        distance: this.rssiToDistance(data.rssi),
-      };
-    });
+    const anchors = Object.entries(anchorData)
+      .filter(([_, dataArray]) => dataArray.length > 0)
+      .map(([anchorIdStr, dataArray]) => {
+        const anchorId = parseInt(anchorIdStr);
+        const latestRssi = dataArray[dataArray.length - 1].rssi;
+        const smoothedRssi =
+          this.kalmanFilters[mac][anchorId].update(latestRssi);
+        const distance = this.rssiToDistance(smoothedRssi);
+        return {
+          position: this.anchorPositions[anchorId],
+          distance,
+        };
+      });
 
-    // Need at least 3 anchors for 2D trilateration
-    if (anchors.length < 3) return null;
+    if (anchors.length < this.minAnchors) return null;
 
-    // Use the first anchor as reference
-    const A = anchors[0];
-    const B = anchors[1];
-    const C = anchors[2];
+    // Initial guess: centroid of anchor positions
+    let x = 0,
+      y = 0;
+    for (const { position } of anchors) {
+      x += position.x;
+      y += position.y;
+    }
+    x /= anchors.length;
+    y /= anchors.length;
 
-    // Calculate differences between reference anchor and others
-    const dA = A.distance;
-    const dB = B.distance;
-    const dC = C.distance;
+    // Gradient descent with bounds
+    const learningRate = 0.01;
+    const maxIterations = 1000;
+    const tolerance = 0.0001;
 
-    const xA = A.position.x;
-    const yA = A.position.y;
-    const xB = B.position.x;
-    const yB = B.position.y;
-    const xC = C.position.x;
-    const yC = C.position.y;
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let dxSum = 0,
+        dySum = 0;
+      let error = 0;
 
-    // Calculate vector from A to B
-    const ABx = xB - xA;
-    const ABy = yB - yA;
+      for (const {
+        position: { x: x_i, y: y_i },
+        distance: d_i,
+      } of anchors) {
+        const dist = Math.sqrt((x - x_i) ** 2 + (y - y_i) ** 2) || 0.0001;
+        const grad_x = (x - x_i) * (1 - d_i / dist);
+        const grad_y = (y - y_i) * (1 - d_i / dist);
+        dxSum += grad_x;
+        dySum += grad_y;
+        error += (dist - d_i) ** 2;
+      }
 
-    // Calculate vector from A to C
-    const ACx = xC - xA;
-    const ACy = yC - yA;
+      x -= learningRate * dxSum;
+      y -= learningRate * dySum;
 
-    // Calculate the dot product of AB and AC
-    const ABAC = ABx * ACx + ABy * ACy;
+      // Enforce bounds during optimization
+      x = Math.max(0, Math.min(5, x));
+      y = Math.max(0, Math.min(5, y));
 
-    // Calculate the length of AB squared
-    const ABAB = ABx * ABx + ABy * ABy;
-
-    // Calculate the length of AC squared
-    const ACAC = ACx * ACx + ACy * ACy;
-
-    // Calculate denominator
-    const denom = ABAB * ACAC - ABAC * ABAC;
-
-    if (Math.abs(denom) < 0.000001) {
-      console.warn("Anchors are colinear, cannot trilaterate");
-      return null;
+      if (error < tolerance) break;
     }
 
-    // Calculate the distance from A to projection of C on AB
-    let t = ACx * (xC - xA) + ACy * (yC - yA);
-    t /= denom;
-
-    // Calculate the projection of C on AB
-    const projCx = xA + t * ABx;
-    const projCy = yA + t * ABy;
-
-    // Calculate the vector from projection to C
-    const CprojCx = xC - projCx;
-    const CprojCy = yC - projCy;
-
-    // Calculate the length of this vector
-    const lenCprojC = Math.sqrt(CprojCx * CprojCx + CprojCy * CprojCy);
-
-    if (lenCprojC < 0.000001) {
-      console.warn("Anchors are colinear, cannot trilaterate");
+    if (isNaN(x) || isNaN(y)) {
+      console.warn(`Trilateration failed for ${mac}: NaN values`);
       return null;
-    }
-
-    // Normalize the vector
-    const normCprojCx = CprojCx / lenCprojC;
-    const normCprojCy = CprojCy / lenCprojC;
-
-    // Calculate the position using trilateration
-    const x =
-      projCx +
-      (normCprojCx *
-        (dA * dA - dB * dB + xB * xB + yB * yB - xA * xA - yA * yA)) /
-        (2 * lenCprojC);
-    const y =
-      projCy +
-      (normCprojCy *
-        (dA * dA - dB * dB + xB * xB + yB * yB - xA * xA - yA * yA)) /
-        (2 * lenCprojC);
-
-    // If we have a 4th anchor, we can refine the position
-    if (anchors.length >= 4) {
-      const D = anchors[3];
-      const dD = D.distance;
-      const xD = D.position.x;
-      const yD = D.position.y;
-
-      // Calculate distance from estimated position to D
-      const estDistToD = Math.sqrt((x - xD) * (x - xD) + (y - yD) * (y - yD));
-
-      // Adjust position based on 4th anchor
-      const error = dD - estDistToD;
-      const adjustX = ((x - xD) / estDistToD) * error * 0.5;
-      const adjustY = ((y - yD) / estDistToD) * error * 0.5;
-
-      return {
-        x: x + adjustX,
-        y: y + adjustY,
-      };
     }
 
     return { x, y };
@@ -404,24 +417,40 @@ export class PositioningSystem {
   }
 
   public setSavedPositions(saved: { [mac: string]: Position }) {
-    this.externalSavedPositions = { ...saved };
+    this.externalSavedPositions = {};
+    for (const [mac, pos] of Object.entries(saved)) {
+      const normMac = mac.toLowerCase();
+      if (pos.x >= 0 && pos.x <= 5 && pos.y >= 0 && pos.y <= 5) {
+        this.externalSavedPositions[normMac] = { x: pos.x, y: pos.y };
+        console.log(
+          `Set saved position for ${normMac}: (x: ${pos.x.toFixed(
+            2,
+          )}, y: ${pos.y.toFixed(2)})`,
+        );
+      } else {
+        console.warn(
+          `Invalid saved position for ${normMac}: (x: ${pos.x}, y: ${pos.y})`,
+        );
+      }
+    }
   }
 
   public getAllPositions(): { [mac: string]: Position } {
-    return { ...this.smoothedPositions };
+    return { ...this.currentPositions };
   }
 
   public getPosition(mac: string): Position | null {
-    const normMac = mac.toLowerCase();
-    return this.smoothedPositions[normMac] || null;
+    return this.currentPositions[mac.toLowerCase()] || null;
   }
 
   private triggerAlarm() {
     if (!this.alarmTimeout && this.activeAlerts.size > 0) {
       console.log("🚨 Triggering alarm due to active alerts");
-      fetch("http://192.168.195.149:3030/blinkLED").catch((err) =>
-        console.error("Alarm fetch error:", err),
-      );
+      fetch("http://192.168.195.149:3030/blinkLED")
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        })
+        .catch((err) => console.error("Alarm fetch error:", err));
       this.alarmTimeout = setTimeout(() => {
         this.alarmTimeout = null;
         if (this.activeAlerts.size > 0) {
@@ -442,9 +471,11 @@ export class PositioningSystem {
       console.log("🛑 Stopping alarm - all issues resolved");
       clearTimeout(this.alarmTimeout);
       this.alarmTimeout = null;
-      fetch("http://192.168.195.149:3030/stopBlink").catch((err) =>
-        console.error("Stop alarm fetch error:", err),
-      );
+      fetch("http://192.168.195.149:3030/stopBlink")
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        })
+        .catch((err) => console.error("Stop alarm fetch error:", err));
     }
   }
 }
