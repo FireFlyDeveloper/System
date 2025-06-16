@@ -46,21 +46,21 @@ export class PositioningSystem {
   private readonly brokerUrl = process.env.brokerUrl || "mqtt://localhost";
   private readonly client = mqtt.connect(this.brokerUrl);
   private readonly minAnchors = 3; // Minimum for 2D trilateration
-  private readonly movementThreshold = 0.5; // Meters for movement detection
-  private readonly maxSignalAge = 3000; // Max signal age in ms
-  private readonly alertCooldown = 5000; // Cooldown for alerts in ms
+  private readonly movementThreshold = 0.10; // Meters for movement detection
+  private readonly maxSignalAge = 5000; // Max signal age in ms
+  private readonly alertCooldown = 2500; // Cooldown for alerts in ms
   private readonly maxViolationsBeforeAlert = 5; // Consecutive violations before alert
 
   // Anchor positions
   private readonly anchorPositions: { [id: number]: Position } = {
     1: { x: 0, y: 0 },
-    2: { x: 5, y: 0 },
+    2: { x: 3, y: 3 },
     3: { x: 0, y: 5 },
   };
 
   // BLE signal propagation constants (adjust based on environment)
-  private readonly txPower = -65; // RSSI at 1 meter (calibrate empirically)
-  private readonly pathLossExponent = 2.7; // Adjusted for indoor environment
+  private readonly txPower = -70; // RSSI at 1 meter (calibrate empirically)
+  private readonly pathLossExponent = 8.0; // Adjusted for indoor environment
 
   private targetMacs: Set<string> = new Set();
   private beaconData: { [mac: string]: { [anchorId: number]: AnchorData[] } } =
@@ -188,7 +188,7 @@ export class PositioningSystem {
 
     if (type === "alert" || type === "offline_alert") {
       this.activeAlerts.add(mac);
-      this.triggerAlarm();
+      // this.triggerAlarm();
     } else if (type === "position_recovered") {
       this.activeAlerts.delete(mac);
       this.violationCounts[mac] = 0; // Reset violations on recovery
