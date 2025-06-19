@@ -294,19 +294,3 @@ export const deleteDevices = async (ids: number[]): Promise<boolean> => {
     return false;
   }
 };
-
-export const updatePositionByMac = async (
-  mac: string,
-  saved_position: object,
-): Promise<boolean> => {
-  try {
-    await pool.query(
-      "UPDATE devices SET saved_position = $1, updated_at = CURRENT_TIMESTAMP WHERE mac = $2",
-      [saved_position, mac],
-    );
-    return true;
-  } catch (error) {
-    console.error("Error updating device position by MAC:", error);
-    return false;
-  }
-};

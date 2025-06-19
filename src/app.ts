@@ -76,10 +76,6 @@ app.get(
   }),
 );
 
-app.get("/api/position/update/:mac", authMiddleware, (c) =>
-  positionController.getPosition(c),
-);
-
 app.get("/", sessionsMiddleware, (c) => c.html(serveHTML("login.html")));
 app.get("/dashboard", sessionsMiddleware, (c) =>
   c.html(serveHTML("home.html")),
