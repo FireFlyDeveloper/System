@@ -91,6 +91,13 @@ app.route("/auth", authUser);
 app.route("/api", device);
 app.route("/api", alerts);
 
+app.post("/api/position/train", sessionsMiddleware, (c) => {
+  return positionController.train(c);
+});
+app.post("/api/position/refresh", sessionsMiddleware, (c) => {
+  return positionController.refresh(c);
+});
+
 app.post("/logout", sessionsMiddleware, (c) => {
   const session = c.get("session");
   session.forget("id");

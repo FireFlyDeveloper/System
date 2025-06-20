@@ -34,32 +34,6 @@ export default class PositionController {
     this.positioningSystem.setTargetMacs(macs);
   }
 
-  async setTargetMacs(ctx: Context) {
-    try {
-      const { macs } = await ctx.req.json();
-      if (!Array.isArray(macs)) {
-        throw new Error("Invalid MAC list");
-      }
-      this.positioningSystem.setTargetMacs(macs);
-      return ctx.json({ message: "Target MACs set successfully" });
-    } catch (err: any) {
-      return ctx.json({ message: err.message }, 400);
-    }
-  }
-
-  async updateTargetMacs(ctx: Context) {
-    try {
-      const { macs } = await ctx.req.json();
-      if (!Array.isArray(macs)) {
-        throw new Error("Invalid MAC list");
-      }
-      this.positioningSystem.updateTargetMacs(macs);
-      return ctx.json({ message: "Target MACs updated successfully" });
-    } catch (err: any) {
-      return ctx.json({ message: err.message }, 400);
-    }
-  }
-
   async setWebSocketContext(ctx: WSContext) {
     if (!this.positioningSystem) {
       ctx.send(JSON.stringify({ error: "Positioning system not initialized" }));
@@ -70,5 +44,31 @@ export default class PositionController {
     return ctx.send(
       JSON.stringify({ message: "WebSocket context set successfully" }),
     );
+  }
+
+  async train(ctx: Context) {
+    try {
+      const { mac } = await ctx.req.json();
+      if (!mac) {
+        throw new Error("MAC address is required");
+      }
+      const result = await this.positioningSystem.connectToPythonSystem(
+        "train",
+        mac.toLowerCase(),
+      );
+      return ctx.json(result);
+    } catch (err: any) {
+      return ctx.json({ message: err.message }, 400);
+    }
+  }
+
+  async refresh(ctx: Context) {
+    try {
+      const result =
+        await this.positioningSystem.connectToPythonSystem("refresh");
+      return ctx.json(result);
+    } catch (err: any) {
+      return ctx.json({ message: err.message }, 400);
+    }
   }
 }
