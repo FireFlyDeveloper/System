@@ -12,6 +12,7 @@ import type { ServerWebSocket } from "bun";
 import { UptimeClock } from "./utils/clock";
 import PositionController from "./controllers/positionController";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import { cors } from 'hono/cors'
 
 const { upgradeWebSocket, websocket } = createBunWebSocket<ServerWebSocket>();
 
@@ -25,6 +26,16 @@ const app = new Hono<{
 const store = new CookieStore();
 export const positionController = new PositionController();
 positionController.create();
+
+app.use('*', cors());
+app.use(
+  '*',
+  cors({
+    origin: ['http://localhost:3000'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type'],
+  })
+);
 
 app.use(
   "*",
