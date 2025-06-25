@@ -5,7 +5,7 @@ export const generateToken = (user: any) => {
     throw new Error("JWT_SECRET is not defined");
   }
   return sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, {
-    expiresIn: "31d",
+    expiresIn: "1m",
   });
 };
 

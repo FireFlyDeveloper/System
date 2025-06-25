@@ -3,15 +3,19 @@ import { getUser, updateUser } from "../service/authService";
 import { generateToken } from "../utils/token";
 
 export class AuthController {
+  async refresh(ctx: Context) {
+    const { name } = await ctx.req.json();
+    console.log("Refresh token data:", name);
+    const token = generateToken({ name });
+    return ctx.json({ message: "Token refreshed", token, authUserState: { name } });
+  }
+
   async login(ctx: Context) {
     const { username, password } = await ctx.req.json();
     const isValidUser = await getUser(username, password);
     if (isValidUser) {
-      const session = ctx.get("session");
-      session.set("id", username);
       const jwt = generateToken(username);
-      session.set("jwt", jwt);
-      return ctx.json({ message: "Login successful" });
+      return ctx.json({ message: "Login successful", token: jwt, authUserState: { name: username } });
     } else {
       return ctx.json({ message: "Invalid username or password" }, 401);
     }

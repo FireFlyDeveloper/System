@@ -2,12 +2,8 @@ import { Context, Next } from "hono";
 import { verifyToken } from "../utils/token";
 
 export const authMiddleware = async (c: Context, next: Next) => {
-  const session = c.get("session");
-  const jwt = session.get("jwt");
-
+  const jwt = c.req.header("Authorization")?.replace("Bearer ", "");
   if (!jwt) {
-    session.forget("id");
-    session.forget("jwt");
     return c.json({ message: "Unauthorized" }, 401);
   }
 
@@ -16,8 +12,6 @@ export const authMiddleware = async (c: Context, next: Next) => {
     c.set("user", decoded);
     await next();
   } catch (err) {
-    session.forget("id");
-    session.forget("jwt");
     return c.json({ message: "Unauthorized" }, 401);
   }
 };
