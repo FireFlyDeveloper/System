@@ -38,7 +38,7 @@ export class PositioningSystem {
     console.log(devices);
     
     devices.forEach((device) => {
-      if (device.enable) {
+      if (device.enable && device.status !== "not-configured") {
         const mac = device.mac.toLowerCase();
         this.deviceIdMap[mac] = device.id;
         this.deviceNameMap[mac] = device.name || mac;
