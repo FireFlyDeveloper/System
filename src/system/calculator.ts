@@ -321,11 +321,6 @@ export class PositioningSystem {
 
     if (action === "refresh" && data.target_macs) {
       this.updateTargetMacs(data.target_macs);
-      await this.sendAlert(
-        "system",
-        `Updated target MACs: ${data.target_macs.join(", ")}`,
-        "devices_updated"
-      );
     }
   }
 
@@ -335,10 +330,6 @@ export class PositioningSystem {
     mac?: string
   ) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    await this.sendAlert(
-      mac?.toUpperCase() || "system",
-      `Failed to ${action === "train" ? "train device" : "refresh devices"}: ${errorMessage}`,
-      `${action}_error`
-    );
+    console.error(`Failed to ${action === "train" ? "train device" : "refresh devices"}: ${errorMessage}`);
   }
 }
