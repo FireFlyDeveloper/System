@@ -107,7 +107,6 @@ export class DeviceController {
 
   async updateDevices(ctx: Context) {
     const devices = await ctx.req.json();
-    console.log(devices);
     const success = await updateDevices(devices.devices);
     if (success) {
       await positionController.init();
