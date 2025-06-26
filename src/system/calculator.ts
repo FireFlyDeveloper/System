@@ -84,8 +84,8 @@ export class PositioningSystem {
           if (mac && status) {
             const isLocked = status === "locked";
             const alertType = isLocked
-              ? "positioning_status_locked"
-              : "positioning_status_not_locked";
+              ? "in-position"
+              : "warning";
 
             // Manage active alerts for positioning status
             if (!isLocked) {
@@ -175,7 +175,7 @@ export class PositioningSystem {
           this.sendAlert(
             mac,
             `${this.deviceNameMap[mac]} is offline for extended period`,
-            "offline_alert",
+            "critical",
           );
           this.triggerAlarm();
         } else if (this.lastSeenTimestamps[mac]) {

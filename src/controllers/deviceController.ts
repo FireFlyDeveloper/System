@@ -88,8 +88,18 @@ export class DeviceController {
     const devices = await ctx.req.json();
     const success = await addDevices(devices.devices);
     if (success) {
+      const formattedDevices = devices.devices.map((device: any) => {
+        return {
+          id: device.id,
+          name: device.name,
+          mac: device.mac,
+          lastUpdated: device.updated_at,
+          status: device.status,
+          monitoring: device.enable,
+        }
+      });
       await positionController.init();
-      return ctx.json({ message: "Devices added successfully" });
+      return ctx.json({ message: "Devices added successfully", devices: formattedDevices });
     } else {
       return ctx.json({ message: "Failed to add devices" }, 500);
     }

@@ -191,7 +191,7 @@ export const addDevices = async (
     status?: string;
     enable?: boolean;
   }[],
-): Promise<boolean> => {
+): Promise<any> => {
   if (devices.length === 0) return false;
 
   const values: any[] = [];
@@ -218,11 +218,11 @@ export const addDevices = async (
   `;
 
   try {
-    await pool.query(query, values);
-    return true;
+    const result = await pool.query(query, values);
+    return result.rows;
   } catch (error) {
     console.error("Error adding multiple devices:", error);
-    return false;
+    return [];
   }
 };
 
