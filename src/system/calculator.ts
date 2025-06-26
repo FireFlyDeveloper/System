@@ -293,9 +293,6 @@ export class PositioningSystem {
   private getPythonSystemConfig(action: "train" | "refresh", mac?: string) {
     if (action === "train" && mac) {
       const normalizedMac = mac.toLowerCase();
-      if (!this.targetMacs.has(normalizedMac)) {
-        throw new Error(`MAC ${mac} is not in target devices`);
-      }
       return {
         url: `${this.pythonApiUrl}/train/${encodeURIComponent(normalizedMac)}`,
         alertMessage: `Training requested for ${this.deviceNameMap[normalizedMac] || mac}`
