@@ -59,7 +59,17 @@ export class DeviceController {
 
   async getAll(ctx: Context) {
     const devices = await getAllDevices();
-    return ctx.json(devices);
+    const formattedDevices = devices.map((device) => {
+      return {
+        id: device.id,
+        name: device.name,
+        mac: device.mac,
+        lastUpdated: device.updated_at,
+        status: device.status,
+        monitoring: device.enable,
+      }
+    });
+    return ctx.json(formattedDevices);
   }
 
   async updatePosition(ctx: Context) {
