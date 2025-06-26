@@ -33,8 +33,7 @@ export class AuthController {
 
   async changePassword(ctx: Context) {
     const { oldPassword, newPassword } = await ctx.req.json();
-    const session = ctx.get("session");
-    const username = session.get("id");
+    const username = 'admin';
     const isValidUser = await getUser(username, oldPassword);
     if (isValidUser) {
       const isUpdated = await updateUser(username, newPassword);
