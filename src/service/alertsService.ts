@@ -61,7 +61,7 @@ export const getAllAlerts = async (
   const offset = (page - 1) * itemsPerPage;
 
   // Only apply filters if type is valid or date is provided
-  const validTypes = ["offline_alert", "alert", "position_recovered"];
+  const validTypes = ["in-position", "warning", "critical", "training_progress", "training_initiated", "devices_refreshed", "configured"];
   const useTypeFilter = type && validTypes.includes(type);
   const useDateFilter = date && /^\d{4}-\d{2}-\d{2}$/.test(date);
 
