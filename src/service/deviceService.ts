@@ -8,7 +8,7 @@ export const createDevicesTable = async () => {
       mac VARCHAR(255) UNIQUE NOT NULL,
       name VARCHAR(255) NOT NULL,
       saved_position JSONB,
-      status VARCHAR(50) DEFAULT 'offline',
+      status VARCHAR(50) DEFAULT 'not-configured',
       enable BOOLEAN DEFAULT true,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -27,7 +27,7 @@ export const addDevice = async (
   mac: string,
   name: string,
   saved_position?: object,
-  status: string = "offline",
+  status: string = "not-configured",
   enable: boolean = true,
 ): Promise<boolean> => {
   try {
