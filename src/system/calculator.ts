@@ -78,7 +78,7 @@ export class PositioningSystem {
       }
 
       const { url, alertMessage } = this.getPythonSystemConfig(action, mac);
-      const response = await fetch(url, { method: "POST" });
+      const response = await fetch(url, { method: "GET" });
       const data = await response.json();
 
       if (!response.ok) {
