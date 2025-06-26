@@ -126,7 +126,7 @@ export class PositioningSystem {
     const lastAlert = this.lastAlertTimestamps[mac] || 0;
     if (
       now - lastAlert < 2500 &&
-      type !== "offline_alert" &&
+      type !== "critical" &&
       type !== "training_progress"
     ) {
       return;

@@ -88,7 +88,7 @@ export class DeviceController {
     const devices = await ctx.req.json();
     const success = await addDevices(devices.devices);
     if (success) {
-      const formattedDevices = devices.devices.map((device: any) => {
+      const formattedDevices = success.map((device: any) => {
         return {
           id: device.id,
           name: device.name,

@@ -29,16 +29,16 @@ export const addDevice = async (
   saved_position?: object,
   status: string = "not-configured",
   enable: boolean = true,
-): Promise<boolean> => {
+): Promise<any> => {
   try {
-    await pool.query(
+    const result = await pool.query(
       "INSERT INTO devices (mac, name, saved_position, status, enable) VALUES ($1, $2, $3, $4, $5)",
       [mac, name, saved_position, status, enable],
     );
-    return true;
+    return result.rows;
   } catch (error) {
     console.error("Error adding device:", error);
-    return false;
+    return [];
   }
 };
 
@@ -54,7 +54,7 @@ export const updateDevice = async (
   try {
     await pool.query(
       "UPDATE devices SET mac = $1, name = $2, saved_position = $3, status = $4, enable = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6",
-      [mac, name, saved_position, status ?? "offline", enable ?? true, id],
+      [mac, name, saved_position, status ?? "not-configured", enable ?? true, id],
     );
     return true;
   } catch (error) {
@@ -206,7 +206,7 @@ export const addDevices = async (
       mac,
       name,
       saved_position ?? null,
-      status ?? "offline",
+      status ?? "not-configured",
       enable ?? true,
     );
   });
@@ -215,6 +215,7 @@ export const addDevices = async (
     INSERT INTO devices (mac, name, saved_position, status, enable)
     VALUES ${placeholders.join(", ")}
     ON CONFLICT (mac) DO NOTHING
+    RETURNING *
   `;
 
   try {
