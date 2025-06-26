@@ -225,7 +225,7 @@ export class PositioningSystem {
     if (this.alarmTimeout || this.activeAlerts.size === 0) return;
 
     console.log("🚨 Triggering alarm due to active alerts");
-    fetch("http://192.168.195.149:3030/blinkLED")
+    fetch("http://localhost:3030/blinkLED")
       .catch(err => console.error("Alarm fetch error:", err));
 
     this.alarmTimeout = setTimeout(() => {
@@ -240,7 +240,7 @@ export class PositioningSystem {
     console.log("🛑 Stopping alarm - all issues resolved");
     clearTimeout(this.alarmTimeout);
     this.alarmTimeout = null;
-    fetch("http://192.168.195.149:3030/stopBlink")
+    fetch("http://localhost:3030/stopBlink")
       .catch(err => console.error("Stop alarm fetch error:", err));
   }
 
