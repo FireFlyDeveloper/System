@@ -48,7 +48,6 @@ app.get(
 
 app.get(
   "/status",
-  authMiddleware,
   upgradeWebSocket((c) => {
     return {
       onOpen(_event, ws) {
