@@ -310,11 +310,13 @@ export class PositioningSystem {
     data: any,
     alertMessage: string
   ) {
-    await this.sendAlert(
-      mac?.toUpperCase() || "system",
-      `${alertMessage}: ${data.message}`,
-      action === "train" ? "training_initiated" : "devices_refreshed"
-    );
+    if (action === "train") {
+      await this.sendAlert(
+        mac?.toUpperCase() || "system",
+        `${alertMessage}: ${data.message}`,
+        action === "train" ? "training_initiated" : "devices_refreshed"
+      );
+    }
   }
 
   private async handlePythonSystemError(
