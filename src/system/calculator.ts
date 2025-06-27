@@ -44,6 +44,8 @@ export class PositioningSystem {
       }
     });
 
+    this.handlePythonSystemResponse("refresh", undefined, { message: "Devices" }, "Refreshing");
+
     this.cleanupActiveAlerts();
     this.checkAlarmStatus();
   }
@@ -313,10 +315,6 @@ export class PositioningSystem {
       `${alertMessage}: ${data.message}`,
       action === "train" ? "training_initiated" : "devices_refreshed"
     );
-
-    if (action === "refresh" && data.target_macs) {
-      this.updateTargetMacs(data.target_macs);
-    }
   }
 
   private async handlePythonSystemError(
